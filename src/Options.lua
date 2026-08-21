@@ -2,7 +2,7 @@ local ADDON_NAME, ns = ...
 
 -- Canvas-style settings panel (Options -> AddOns -> Buff Leaderboard),
 -- modeled on Syndicator's: freeform frame with our own widgets, and the
--- tracked-buff list in a fixed-height inset scroll box.
+-- tracked-buff list in a fixed-height inset scroll box with add/remove.
 
 local function MakeCheckbox(parent, label, getter, setter)
     local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
@@ -28,8 +28,9 @@ local function MakeCheckbox(parent, label, getter, setter)
     return check
 end
 
--- Fixed-height scrollable list with one class-colored checkbox row per
--- tracked buff group, bound to BuffLeaderboardDB.options.spells.
+-- Fixed-height scrollable list of tracked buffs: enable checkbox, name,
+-- delete button. Rows bind to the live entry tables in
+-- BuffLeaderboardDB.options.tracked.
 local function MakeSpellList(parent)
     local container = CreateFrame("Frame", nil, parent, "InsetFrameTemplate")
 
@@ -40,44 +41,61 @@ local function MakeSpellList(parent)
     scrollBox:SetPoint("TOPLEFT", 2, -2)
     scrollBox:SetPoint("BOTTOMRIGHT", scrollBar, "BOTTOMLEFT", -3, 0)
 
+    local function UpdateList()
+        scrollBox:SetDataProvider(CreateDataProvider(ns.GetTrackedList()), true)
+    end
+    container.UpdateList = UpdateList
+
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtent(24)
     view:SetElementInitializer("Button", function(frame, elementData)
         frame:SetPushedTextOffset(0, 0)
         frame:SetHighlightAtlas("search-highlight")
         frame:SetNormalFontObject(GameFontHighlight)
-        frame.group = elementData.group
+        frame.entry = elementData
         if not frame.Check then
             frame.Check = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
             frame.Check:SetSize(22, 22)
             frame.Check:SetPoint("LEFT", 4, 0)
             frame.Check:SetScript("OnClick", function(self)
-                BuffLeaderboardDB.options.spells[frame.group] = self:GetChecked() and true or false
+                frame.entry.enabled = self:GetChecked() and true or false
             end)
             frame:SetScript("OnClick", function(self)
                 self.Check:Click()
             end)
+
+            frame.Delete = CreateFrame("Button", nil, frame)
+            frame.Delete:SetNormalAtlas("transmog-icon-remove")
+            frame.Delete:SetPoint("RIGHT", -5, 0)
+            frame.Delete:SetSize(15, 15)
+            frame.Delete:SetScript("OnClick", function()
+                ns.RemoveSpell(frame.entry.key)
+                GameTooltip:Hide()
+                UpdateList()
+            end)
+            frame.Delete:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Stop tracking this buff")
+                GameTooltip:Show()
+                self:SetAlpha(0.5)
+            end)
+            frame.Delete:SetScript("OnLeave", function(self)
+                GameTooltip:Hide()
+                self:SetAlpha(1)
+            end)
         end
-        frame.Check:SetChecked(BuffLeaderboardDB.options.spells[elementData.group])
-        frame:SetText(elementData.group)
+        frame.Check:SetChecked(elementData.enabled)
+        frame:SetText(elementData.name)
         local text = frame:GetFontString()
         text:SetPoint("LEFT", 32, 0)
-        text:SetPoint("RIGHT", -5, 0)
+        text:SetPoint("RIGHT", -24, 0)
         text:SetJustifyH("LEFT")
-        local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[elementData.class]
-        if color then
-            text:SetTextColor(color.r, color.g, color.b)
-        else
-            text:SetTextColor(1, 1, 1)
-        end
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
     -- Rebuilding the provider on show re-runs initializers, so check states
     -- always reflect the saved options
-    container:SetScript("OnShow", function()
-        scrollBox:SetDataProvider(CreateDataProvider(ns.spellGroups), true)
-    end)
+    container:SetScript("OnShow", UpdateList)
 
     return container
 end
@@ -108,12 +126,45 @@ function ns.SetupOptions()
         function(v) opts.announce = v end)
     announce:SetPoint("TOPLEFT", trackSelf, "BOTTOMLEFT", 0, -2)
 
-    local list = MakeSpellList(panel)
-    list:SetPoint("TOPLEFT", announce, "BOTTOMLEFT", 4, -30)
-    list:SetSize(320, 210)
     local listHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    listHeader:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 0, 5)
+    listHeader:SetPoint("TOPLEFT", announce, "BOTTOMLEFT", 4, -20)
     listHeader:SetText("Tracked Buffs")
+
+    local list = MakeSpellList(panel)
+    list:SetSize(320, 190)
+
+    -- Add row: buff name or spell id + Add button, above the list
+    local addBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    addBox:SetSize(240, 22)
+    addBox:SetAutoFocus(false)
+    addBox:SetPoint("TOPLEFT", listHeader, "BOTTOMLEFT", 6, -8)
+
+    local addButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    addButton:SetSize(70, 22)
+    addButton:SetText("Add")
+    addButton:SetPoint("LEFT", addBox, "RIGHT", 8, 0)
+
+    local addHint = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    addHint:SetPoint("TOPLEFT", addBox, "BOTTOMLEFT", -6, -4)
+    addHint:SetText("Add a buff by exact name (all ranks match) or by spell id.")
+
+    list:SetPoint("TOPLEFT", addHint, "BOTTOMLEFT", 0, -8)
+
+    local function DoAdd()
+        local ok, result = ns.AddSpell(addBox:GetText())
+        if ok then
+            addBox:SetText("")
+            addBox:ClearFocus()
+            list:UpdateList()
+        else
+            UIErrorsFrame:AddMessage(result, 1, 0.3, 0.3)
+        end
+    end
+    addButton:SetScript("OnClick", DoAdd)
+    addBox:SetScript("OnEnterPressed", DoAdd)
+    addBox:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+    end)
 
     -- Required no-op handlers for canvas settings panels
     panel.OnCommit = function() end

@@ -49,13 +49,73 @@ local function InitDB()
             opts[k] = v
         end
     end
-    -- Per-spell enable flags, keyed by group name; new spells default on
-    opts.spells = opts.spells or {}
-    for _, info in ipairs(ns.spellGroups) do
-        if opts.spells[info.group] == nil then
-            opts.spells[info.group] = true
+    -- User-managed tracked list, keyed by lowercased buff name. Seeded from
+    -- ns.defaultSpells only when absent; after that the saved list is
+    -- authoritative and edited via the options panel or /blb track|untrack.
+    if not opts.tracked then
+        opts.tracked = {}
+        local oldFlags = opts.spells -- pre-0.2 per-spell enable flags
+        for _, name in ipairs(ns.defaultSpells) do
+            local enabled = true
+            if oldFlags and oldFlags[name] ~= nil then
+                enabled = oldFlags[name]
+            end
+            opts.tracked[name:lower()] = {
+                name = name,
+                enabled = enabled,
+                countRefresh = true, -- in TBC a REFRESH is always a re-cast
+            }
         end
+        opts.spells = nil
     end
+end
+
+-------------------------------------------------------------------------------
+-- Tracked-list management (used by Options.lua and slash commands)
+-------------------------------------------------------------------------------
+
+local function ResolveSpellName(input)
+    local id = tonumber(input)
+    if not id then
+        return input
+    end
+    if C_Spell and C_Spell.GetSpellName then
+        return C_Spell.GetSpellName(id)
+    end
+    return (GetSpellInfo(id))
+end
+
+-- Accepts a buff name or numeric spellId; returns ok, displayName/error
+function ns.AddSpell(input)
+    input = strtrim(input or "")
+    if input == "" then
+        return false, "enter a buff name or spell id"
+    end
+    local name = ResolveSpellName(input)
+    if not name or name == "" then
+        return false, ("unknown spell id %s"):format(input)
+    end
+    local key = name:lower()
+    if opts.tracked[key] then
+        return false, ("%s is already tracked"):format(name)
+    end
+    opts.tracked[key] = { name = name, enabled = true, countRefresh = true }
+    return true, name
+end
+
+function ns.RemoveSpell(key)
+    opts.tracked[key] = nil
+end
+
+-- Sorted array of tracked entries (live tables, with .key filled in)
+function ns.GetTrackedList()
+    local list = {}
+    for key, entry in next, opts.tracked do
+        entry.key = key
+        list[#list + 1] = entry
+    end
+    table.sort(list, function(a, b) return a.name < b.name end)
+    return list
 end
 
 local function InitChar()
@@ -107,15 +167,16 @@ end
 
 local function OnCombatLogEvent()
     local _, subevent, _, sourceGUID, sourceName, sourceFlags, _,
-        destGUID, _, _, _, spellId = CombatLogGetCurrentEventInfo()
+        destGUID, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
 
     local mode = TRACKED[subevent]
     if not mode then return end
     if destGUID ~= playerGUID then return end
+    if not spellName then return end
 
-    local spell = ns.spells[spellId]
-    if not spell then return end
-    if not opts.spells[spell.group] then return end
+    -- Name matching: all ranks of a TBC spell share one name
+    local spell = opts.tracked[spellName:lower()]
+    if not spell or not spell.enabled then return end
     if mode ~= "always" and not spell[mode] then return end
 
     if not sourceGUID or not sourceName then return end
@@ -124,11 +185,11 @@ local function OnCombatLogEvent()
     -- Players only: drops pets, guardians, and NPC-applied copies
     if band(sourceFlags, PLAYER_TYPE) == 0 then return end
 
-    local total = Record(sourceGUID, sourceName, spell.group)
+    local total = Record(sourceGUID, sourceName, spell.name)
     if opts.announce then
         local name = strsplit("-", sourceName)
         print(("|cff33ff99BuffLeaderboard|r: %s -> you: %s (x%d all-time)"):format(
-            name, spell.group, total))
+            name, spell.name, total))
     end
 end
 
@@ -197,11 +258,28 @@ end
 SLASH_BUFFLEADERBOARD1 = "/blb"
 SLASH_BUFFLEADERBOARD2 = "/buffleaderboard"
 SlashCmdList.BUFFLEADERBOARD = function(msg)
-    local cmd, arg = strsplit(" ", strlower(strtrim(msg or "")), 2)
+    local cmd, arg = strsplit(" ", strtrim(msg or ""), 2)
+    cmd = strlower(cmd)
     if cmd == "dump" or cmd == "" then
-        Dump(arg) -- "session" or default all-time
+        Dump(arg and strlower(arg)) -- "session" or default all-time
+    elseif cmd == "track" and arg then
+        local ok, result = ns.AddSpell(arg)
+        if ok then
+            print(("|cff33ff99BuffLeaderboard|r: now tracking %s."):format(result))
+        else
+            print("|cff33ff99BuffLeaderboard|r: " .. result)
+        end
+    elseif cmd == "untrack" and arg then
+        local key = strlower(strtrim(arg))
+        local entry = BuffLeaderboardDB.options.tracked[key]
+        if entry then
+            ns.RemoveSpell(key)
+            print(("|cff33ff99BuffLeaderboard|r: no longer tracking %s."):format(entry.name))
+        else
+            print(("|cff33ff99BuffLeaderboard|r: %s is not tracked."):format(arg))
+        end
     elseif cmd == "reset" then
-        if arg == "confirm" then
+        if arg and strlower(arg) == "confirm" then
             wipe(db.casters)
             wipe(session.casters)
             print("|cff33ff99BuffLeaderboard|r: all-time data for this character reset.")
@@ -216,6 +294,8 @@ SlashCmdList.BUFFLEADERBOARD = function(msg)
         print("|cff33ff99BuffLeaderboard|r commands:")
         print("  /blb dump — all-time leaderboard")
         print("  /blb dump session — this session only")
+        print("  /blb track <name or spell id> — add a buff to the tracked list")
+        print("  /blb untrack <name> — remove a buff from the tracked list")
         print("  /blb options — open the settings panel")
         print("  /blb reset confirm — wipe this character's data")
     end
