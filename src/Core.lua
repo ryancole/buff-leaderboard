@@ -5,6 +5,7 @@ local PLAYER_TYPE = COMBATLOG_OBJECT_TYPE_PLAYER
 
 local playerGUID
 local db -- this character's branch of BuffLeaderboardDB
+local opts -- BuffLeaderboardDB.options (account-wide)
 local session = { casters = {} } -- in-memory only, same shape as db
 ns.session = session
 
@@ -34,8 +35,20 @@ local TRACKED = {
 --   },
 -- }
 
+ns.optionDefaults = {
+    trackSelf = false, -- count tracked buffs you cast on yourself
+    announce = false,  -- chat message when a tracked buff lands on you
+}
+
 local function InitDB()
     BuffLeaderboardDB = BuffLeaderboardDB or { version = 1, chars = {} }
+    BuffLeaderboardDB.options = BuffLeaderboardDB.options or {}
+    opts = BuffLeaderboardDB.options
+    for k, v in next, ns.optionDefaults do
+        if opts[k] == nil then
+            opts[k] = v
+        end
+    end
 end
 
 local function InitChar()
@@ -75,11 +88,14 @@ local function GetCasterRecord(store, guid, sourceName)
 end
 
 local function Record(guid, sourceName, group)
+    local allTimeTotal
     for _, store in ipairs({ db, session }) do
         local rec = GetCasterRecord(store, guid, sourceName)
         rec.total = rec.total + 1
         rec.spells[group] = (rec.spells[group] or 0) + 1
+        allTimeTotal = allTimeTotal or rec.total -- db is first
     end
+    return allTimeTotal
 end
 
 local function OnCombatLogEvent()
@@ -94,13 +110,18 @@ local function OnCombatLogEvent()
     if not spell then return end
     if mode ~= "always" and not spell[mode] then return end
 
-    -- Self-casts excluded entirely for now (soulstoning yourself, etc.)
-    if not sourceGUID or sourceGUID == playerGUID then return end
-    if not sourceName then return end
+    if not sourceGUID or not sourceName then return end
+    -- Self-casts (soulstoning yourself, etc.) only if opted in
+    if sourceGUID == playerGUID and not opts.trackSelf then return end
     -- Players only: drops pets, guardians, and NPC-applied copies
     if band(sourceFlags, PLAYER_TYPE) == 0 then return end
 
-    Record(sourceGUID, sourceName, spell.group)
+    local total = Record(sourceGUID, sourceName, spell.group)
+    if opts.announce then
+        local name = strsplit("-", sourceName)
+        print(("|cff33ff99BuffLeaderboard|r: %s -> you: %s (x%d all-time)"):format(
+            name, spell.group, total))
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -114,6 +135,7 @@ frame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" then
         if arg1 == ADDON_NAME then
             InitDB()
+            ns.SetupOptions()
             self:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
@@ -177,12 +199,15 @@ SlashCmdList.BUFFLEADERBOARD = function(msg)
         else
             print("|cff33ff99BuffLeaderboard|r: this wipes all-time data for this character. Type |cffffff00/blb reset confirm|r to proceed.")
         end
+    elseif cmd == "options" or cmd == "config" then
+        ns.OpenOptions()
     elseif cmd == "show" or cmd == "hide" then
         print("|cff33ff99BuffLeaderboard|r: frame UI not built yet — use /blb dump.")
     else
         print("|cff33ff99BuffLeaderboard|r commands:")
         print("  /blb dump — all-time leaderboard")
         print("  /blb dump session — this session only")
+        print("  /blb options — open the settings panel")
         print("  /blb reset confirm — wipe this character's data")
     end
 end

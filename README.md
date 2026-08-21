@@ -10,6 +10,7 @@ of who has given you the most, across sessions.
   looks for it at the top of the addon folder)
 - `src/Spells.lua` — tracked-spell whitelist (all TBC ranks, per-spell refresh policy)
 - `src/Core.lua` — SavedVariables, combat log handler, slash commands
+- `src/Options.lua` — settings panel (Options -> AddOns -> Buff Leaderboard)
 
 ## Developing
 
@@ -30,4 +31,5 @@ New-Item -ItemType Junction `
 
 - `/blb dump` — all-time leaderboard to chat
 - `/blb dump session` — this session only
+- `/blb options` — open the settings panel
 - `/blb reset confirm` — wipe this character's data
