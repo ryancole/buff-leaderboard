@@ -1,0 +1,9 @@
+## Interface: 20506
+## Title: Buff Leaderboard
+## Notes: Tracks external buffs cast on you and keeps an all-time leaderboard per caster.
+## Author: Ryan
+## Version: 0.1.0
+## SavedVariables: BuffLeaderboardDB
+
+src\Spells.lua
+src\Core.lua
