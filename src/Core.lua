@@ -49,6 +49,13 @@ local function InitDB()
             opts[k] = v
         end
     end
+    -- Per-spell enable flags, keyed by group name; new spells default on
+    opts.spells = opts.spells or {}
+    for _, info in ipairs(ns.spellGroups) do
+        if opts.spells[info.group] == nil then
+            opts.spells[info.group] = true
+        end
+    end
 end
 
 local function InitChar()
@@ -108,6 +115,7 @@ local function OnCombatLogEvent()
 
     local spell = ns.spells[spellId]
     if not spell then return end
+    if not opts.spells[spell.group] then return end
     if mode ~= "always" and not spell[mode] then return end
 
     if not sourceGUID or not sourceName then return end
@@ -157,6 +165,7 @@ local function ClassColor(class)
     end
     return "|cffcccccc"
 end
+ns.ClassColor = ClassColor -- shared with Options.lua for spell labels
 
 local function Dump(scope)
     local store = (scope == "session") and session or db

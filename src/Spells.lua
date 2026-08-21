@@ -15,8 +15,12 @@ local ADDON_NAME, ns = ...
 --                  the default list stacks; kept for extensions.
 ns.spells = {}
 
-local function Add(group, ids, opts)
+-- Ordered list of tracked groups for the options panel: { group, class }
+ns.spellGroups = {}
+
+local function Add(group, class, ids, opts)
     opts = opts or {}
+    ns.spellGroups[#ns.spellGroups + 1] = { group = group, class = class }
     for _, id in ipairs(ids) do
         ns.spells[id] = {
             group = group,
@@ -27,30 +31,30 @@ local function Add(group, ids, opts)
 end
 
 -- Druid
-Add("Innervate", { 29166 })
+Add("Innervate", "DRUID", { 29166 })
 
 -- Priest
-Add("Power Infusion", { 10060 })
-Add("Pain Suppression", { 33206 })
-Add("Fear Ward", { 6346 })
+Add("Power Infusion", "PRIEST", { 10060 })
+Add("Pain Suppression", "PRIEST", { 33206 })
+Add("Fear Ward", "PRIEST", { 6346 })
 
 -- Shaman (no Sated/Exhaustion debuff in TBC, so chained casts re-apply)
-Add("Bloodlust", { 2825 })
-Add("Heroism", { 32182 })
+Add("Bloodlust", "SHAMAN", { 2825 })
+Add("Heroism", "SHAMAN", { 32182 })
 
 -- Paladin
-Add("Blessing of Protection", { 1022, 5599, 10278 })
-Add("Blessing of Freedom", { 1044 })
-Add("Blessing of Sacrifice", { 6940, 20729, 27147, 27148 })
-Add("Divine Intervention", { 19752 })
+Add("Blessing of Protection", "PALADIN", { 1022, 5599, 10278 })
+Add("Blessing of Freedom", "PALADIN", { 1044 })
+Add("Blessing of Sacrifice", "PALADIN", { 6940, 20729, 27147, 27148 })
+Add("Divine Intervention", "PALADIN", { 19752 })
 
 -- Hunter
-Add("Misdirection", { 34477 })
+Add("Misdirection", "HUNTER", { 34477 })
 
 -- Warlock
-Add("Soulstone Resurrection", { 20707, 20762, 20763, 20764, 20765, 27239 })
+Add("Soulstone Resurrection", "WARLOCK", { 20707, 20762, 20763, 20764, 20765, 27239 })
 
 -- Extension examples (noisy, off by default):
--- Add("Power Word: Shield", { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218 })
--- Add("Blessing of Salvation", { 1038 })
--- Add("Greater Blessing of Salvation", { 25895 })
+-- Add("Power Word: Shield", "PRIEST", { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218 })
+-- Add("Blessing of Salvation", "PALADIN", { 1038 })
+-- Add("Greater Blessing of Salvation", "PALADIN", { 25895 })
