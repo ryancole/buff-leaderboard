@@ -109,8 +109,9 @@ function ns.RemoveSpell(key)
     opts.tracked[key] = nil
 end
 
--- Leaderboard for the options panel: sorted by total desc, rank filled in.
--- db is nil until PLAYER_LOGIN, but the panel can only be opened after that.
+-- Recorded casters for the options panel, alphabetical (there is no
+-- combined ladder; ranks are per-buff). db is nil until PLAYER_LOGIN, but
+-- the panel can only be opened after that.
 function ns.GetCasterList()
     local list = {}
     if not db then return list end
@@ -122,10 +123,7 @@ function ns.GetCasterList()
             total = rec.total,
         }
     end
-    table.sort(list, function(a, b) return a.total > b.total end)
-    for i, entry in ipairs(list) do
-        entry.rank = i
-    end
+    table.sort(list, function(a, b) return (a.name or "") < (b.name or "") end)
     return list
 end
 
@@ -195,13 +193,15 @@ local function Record(guid, sourceName, group)
     return allTimeTotal
 end
 
--- All-time rank of a caster: 1 + number of casters with a higher total
-local function GetRank(guid)
+-- All-time rank of a caster for one buff, by that buff's cast count.
+-- Per-buff ladders are the only ranking concept; there is no combined rank.
+local function GetSpellRank(guid, spellName)
     local mine = db.casters[guid]
-    if not mine then return nil end
+    local mineCount = mine and mine.spells[spellName]
+    if not mineCount then return nil end
     local rank = 1
     for _, rec in next, db.casters do
-        if rec.total > mine.total then
+        if (rec.spells[spellName] or 0) > mineCount then
             rank = rank + 1
         end
     end
@@ -214,10 +214,12 @@ local WHISPER_COOLDOWN = 300 -- at most one thank-you per caster per 5 min
 local lastRankReply = {} -- [guid] = GetTime() of last !rank auto-reply
 local RANK_REPLY_COOLDOWN = 30 -- per sender, so !rank can't be spammed
 
--- Incoming whisper: reply to "!rank" with the sender's standing
+-- Incoming whisper: reply to "!rank" with the sender's overall standing, or
+-- "!rank <buff>" with their standing for that buff
 local function OnWhisper(text, sender, guid)
     if not opts.rankReplies then return end
-    if strlower(strtrim(text or "")) ~= "!rank" then return end
+    text = strlower(strtrim(text or ""))
+    if text ~= "!rank" and not text:match("^!rank%s") then return end
     if not guid or guid == playerGUID then return end
 
     local now = GetTime()
@@ -227,14 +229,48 @@ local function OnWhisper(text, sender, guid)
     lastRankReply[guid] = now
 
     local rec = db and db.casters[guid]
-    if rec then
-        SendChatMessage(
-            ("Your leaderboard rank: %d, total casts: %d"):format(GetRank(guid), rec.total),
-            "WHISPER", nil, sender)
-    else
+    if not rec then
         SendChatMessage("You haven't cast any tracked buffs on me yet!",
             "WHISPER", nil, sender)
+        return
     end
+
+    local spellArg = strtrim(text:sub(6))
+    if spellArg == "" then
+        -- Their rank on every buff ladder they appear on, biggest first,
+        -- packed into the 255-character whisper limit
+        local ranks = {}
+        for name, count in next, rec.spells do
+            ranks[#ranks + 1] = { name = name, count = count }
+        end
+        table.sort(ranks, function(a, b) return a.count > b.count end)
+        local reply
+        for _, entry in ipairs(ranks) do
+            local piece = ("%s: rank %d (x%d)"):format(
+                entry.name, GetSpellRank(guid, entry.name), entry.count)
+            if not reply then
+                reply = piece
+            elseif #reply + #piece + 2 <= 240 then
+                reply = reply .. ", " .. piece
+            else
+                break
+            end
+        end
+        SendChatMessage(reply, "WHISPER", nil, sender)
+        return
+    end
+
+    -- Case-insensitive match against the buffs they have actually cast
+    for name, count in next, rec.spells do
+        if strlower(name) == spellArg then
+            SendChatMessage(
+                ("Your %s rank: %d, casts: %d"):format(
+                    name, GetSpellRank(guid, name), count),
+                "WHISPER", nil, sender)
+            return
+        end
+    end
+    SendChatMessage("You haven't cast that buff on me yet!", "WHISPER", nil, sender)
 end
 
 local function OnCombatLogEvent()
@@ -257,16 +293,20 @@ local function OnCombatLogEvent()
     -- Players only: drops pets, guardians, and NPC-applied copies
     if band(sourceFlags, PLAYER_TYPE) == 0 then return end
 
-    local oldTotal = db.casters[sourceGUID] and db.casters[sourceGUID].total or 0
-    local total = Record(sourceGUID, sourceName, spell.name)
+    -- Ranks, overtakes, and whispers are all per-buff: "who Innervates me
+    -- the most" rather than one combined ladder
+    local casterRec = db.casters[sourceGUID]
+    local oldCount = casterRec and casterRec.spells[spell.name] or 0
+    Record(sourceGUID, sourceName, spell.name)
+    local count = oldCount + 1
 
-    -- Overtake detection: rank is 1 + count of strictly-higher totals, so a
-    -- caster going from oldTotal to oldTotal+1 passes exactly the players
-    -- still sitting at oldTotal
+    -- Overtake detection: rank is 1 + count of strictly-higher counts for
+    -- this buff, so going from oldCount to oldCount+1 passes exactly the
+    -- players still sitting at oldCount
     local passed
-    if oldTotal > 0 then
+    if oldCount > 0 then
         for guid, rec in next, db.casters do
-            if guid ~= sourceGUID and rec.total == oldTotal then
+            if guid ~= sourceGUID and (rec.spells[spell.name] or 0) == oldCount then
                 passed = passed or {}
                 passed[#passed + 1] = rec.name or "?"
             end
@@ -278,11 +318,12 @@ local function OnCombatLogEvent()
 
     if opts.announce then
         local name = strsplit("-", sourceName)
-        local msg = ("|cff33ff99BuffLeaderboard|r: %s -> you: %s (x%d all-time)"):format(
-            name, spell.name, total)
+        local msg = ("|cff33ff99BuffLeaderboard|r: %s -> you: %s (x%d)"):format(
+            name, spell.name, count)
         if passed then
-            msg = ("%s - overtakes %s for rank %d!"):format(
-                msg, table.concat(passed, ", "), GetRank(sourceGUID))
+            msg = ("%s - overtakes %s for %s rank %d!"):format(
+                msg, table.concat(passed, ", "), spell.name,
+                GetSpellRank(sourceGUID, spell.name))
         end
         print(msg)
     end
@@ -292,8 +333,8 @@ local function OnCombatLogEvent()
         local now = GetTime()
         if not lastWhisper[sourceGUID] or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN then
             lastWhisper[sourceGUID] = now
-            local details = ("your leaderboard rank: %d, total casts: %d"):format(
-                GetRank(sourceGUID), total)
+            local details = ("your %s rank: %d, casts: %d"):format(
+                spell.name, GetSpellRank(sourceGUID, spell.name), count)
             if passed then
                 details = ("%s, overtook: %s"):format(details, table.concat(passed, ", "))
             end
@@ -343,30 +384,63 @@ local function ClassColor(class)
 end
 ns.ClassColor = ClassColor -- shared with Options.lua for spell labels
 
-local function Dump(scope)
+-- All-time leaderboard for a single buff, matched case-insensitively
+local function DumpSpell(filter)
+    local lowerFilter = strlower(filter)
+    local displayName
+    local list = {}
+    for _, rec in next, db.casters do
+        for name, count in next, rec.spells do
+            if strlower(name) == lowerFilter then
+                displayName = name
+                list[#list + 1] = { rec = rec, count = count }
+            end
+        end
+    end
+    if not displayName then
+        print(("|cff33ff99BuffLeaderboard|r: no recorded casts of \"%s\"."):format(filter))
+        return
+    end
+    table.sort(list, function(a, b) return a.count > b.count end)
+
+    print(("|cff33ff99BuffLeaderboard|r — %s, all-time:"):format(displayName))
+    for i, item in ipairs(list) do
+        local rec = item.rec
+        local display = rec.realm and (rec.name .. "-" .. rec.realm) or rec.name
+        print(("  %d. %s%s|r — %d"):format(
+            i, ClassColor(rec.class), display or "?", item.count))
+    end
+end
+
+local function Dump(arg)
+    arg = arg and strtrim(arg) or ""
+    local scope = strlower(arg)
+    if scope ~= "" and scope ~= "session" then
+        return DumpSpell(arg) -- anything else is a buff-name filter
+    end
+
     local store = (scope == "session") and session or db
     local list = {}
     for _, rec in next, store.casters do
         list[#list + 1] = rec
     end
-    table.sort(list, function(a, b) return a.total > b.total end)
+    table.sort(list, function(a, b) return (a.name or "") < (b.name or "") end)
 
-    print(("|cff33ff99BuffLeaderboard|r — %s:"):format(
+    print(("|cff33ff99BuffLeaderboard|r — %s (use /blb dump <buff> for a ladder):"):format(
         scope == "session" and "this session" or "all-time"))
     if #list == 0 then
         print("  (nothing recorded yet)")
         return
     end
-    for i, rec in ipairs(list) do
+    for _, rec in ipairs(list) do
         local display = rec.realm and (rec.name .. "-" .. rec.realm) or rec.name
         local parts = {}
         for group, count in next, rec.spells do
             parts[#parts + 1] = ("%s x%d"):format(group, count)
         end
         table.sort(parts)
-        print(("  %d. %s%s|r — %d  (%s)"):format(
-            i, ClassColor(rec.class), display or "?", rec.total,
-            table.concat(parts, ", ")))
+        print(("  %s%s|r — %s"):format(
+            ClassColor(rec.class), display or "?", table.concat(parts, ", ")))
     end
 end
 
@@ -376,7 +450,7 @@ SlashCmdList.BUFFLEADERBOARD = function(msg)
     local cmd, arg = strsplit(" ", strtrim(msg or ""), 2)
     cmd = strlower(cmd)
     if cmd == "dump" or cmd == "" then
-        Dump(arg and strlower(arg)) -- "session" or default all-time
+        Dump(arg) -- empty = all-time, "session", or a buff-name filter
     elseif cmd == "track" and arg then
         local ok, result = ns.AddSpell(arg)
         if ok then
@@ -407,8 +481,9 @@ SlashCmdList.BUFFLEADERBOARD = function(msg)
         print("|cff33ff99BuffLeaderboard|r: frame UI not built yet — use /blb dump.")
     else
         print("|cff33ff99BuffLeaderboard|r commands:")
-        print("  /blb dump — all-time leaderboard")
+        print("  /blb dump — all casters and their per-buff counts")
         print("  /blb dump session — this session only")
+        print("  /blb dump <buff name> — the ladder for one buff")
         print("  /blb track <name or spell id> — add a buff to the tracked list")
         print("  /blb untrack <name> — remove a buff from the tracked list")
         print("  /blb options — open the settings panel")

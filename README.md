@@ -42,12 +42,15 @@ git tag v0.2.0 && git push origin master --tags
 
 ## Commands
 
-- `/blb dump` — all-time leaderboard to chat
+- `/blb dump` — all casters and their per-buff counts
 - `/blb dump session` — this session only
+- `/blb dump <buff name>` — the all-time ladder for one buff
 - `/blb track <name or spell id>` — add a buff to the tracked list
 - `/blb untrack <name>` — remove a buff from the tracked list
 - `/blb options` — open the settings panel
 - `/blb reset confirm` — wipe this character's data
 
 With the auto-reply option enabled, other players can whisper you `!rank`
-to get their current rank and total back automatically.
+for their rank on every buff ladder they appear on, or `!rank <buff name>`
+(e.g. `!rank innervate`) for a single buff. All rankings are per-buff;
+there is no combined leaderboard.

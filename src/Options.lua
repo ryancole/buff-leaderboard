@@ -148,7 +148,7 @@ local function MakeCasterList(parent)
         local display = elementData.realm
             and (elementData.name .. "-" .. elementData.realm)
             or elementData.name
-        frame:SetText(("%d. %s (%d)"):format(elementData.rank, display or "?", elementData.total))
+        frame:SetText(("%s (%d)"):format(display or "?", elementData.total))
         local text = frame:GetFontString()
         text:SetPoint("LEFT", 8, 0)
         text:SetPoint("RIGHT", -24, 0)
