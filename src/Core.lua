@@ -133,6 +133,53 @@ function ns.ForgetCaster(guid)
         db.casters[guid] = nil
     end
     session.casters[guid] = nil
+    ns.RefreshLeaderboard()
+end
+
+-- Buff names with at least one recorded cast, alphabetical. These come
+-- from history, not the tracked list, so ladders survive untracking.
+function ns.GetRecordedBuffs(sessionOnly)
+    local store = sessionOnly and session or db
+    local seen, list = {}, {}
+    if store then
+        for _, rec in next, store.casters do
+            for name in next, rec.spells do
+                if not seen[name] then
+                    seen[name] = true
+                    list[#list + 1] = name
+                end
+            end
+        end
+    end
+    table.sort(list)
+    return list
+end
+
+-- Ladder for one buff, most casts first; ties break alphabetically
+function ns.GetLadder(spellName, sessionOnly)
+    local store = sessionOnly and session or db
+    local list = {}
+    if store then
+        for _, rec in next, store.casters do
+            local count = rec.spells[spellName]
+            if count then
+                list[#list + 1] = {
+                    name = rec.name,
+                    realm = rec.realm,
+                    class = rec.class,
+                    count = count,
+                    lastSeen = rec.lastSeen,
+                }
+            end
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.count ~= b.count then
+            return a.count > b.count
+        end
+        return (a.name or "") < (b.name or "")
+    end)
+    return list
 end
 
 -- Sorted array of tracked entries (live tables, with .key filled in)
@@ -299,6 +346,7 @@ local function OnCombatLogEvent()
     local oldCount = casterRec and casterRec.spells[spell.name] or 0
     Record(sourceGUID, sourceName, spell.name)
     local count = oldCount + 1
+    ns.RefreshLeaderboard() -- no-op unless the window is open
 
     -- Overtake detection: rank is 1 + count of strictly-higher counts for
     -- this buff, so going from oldCount to oldCount+1 passes exactly the
@@ -372,7 +420,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
 end)
 
 -------------------------------------------------------------------------------
--- Slash commands (chat dump until the frame UI lands)
+-- Slash commands
 -------------------------------------------------------------------------------
 
 local function ClassColor(class)
@@ -449,7 +497,11 @@ SLASH_BUFFLEADERBOARD2 = "/buffleaderboard"
 SlashCmdList.BUFFLEADERBOARD = function(msg)
     local cmd, arg = strsplit(" ", strtrim(msg or ""), 2)
     cmd = strlower(cmd)
-    if cmd == "dump" or cmd == "" then
+    if cmd == "" or cmd == "show" or cmd == "toggle" then
+        ns.ToggleLeaderboard()
+    elseif cmd == "hide" then
+        ns.HideLeaderboard()
+    elseif cmd == "dump" then
         Dump(arg) -- empty = all-time, "session", or a buff-name filter
     elseif cmd == "track" and arg then
         local ok, result = ns.AddSpell(arg)
@@ -471,16 +523,16 @@ SlashCmdList.BUFFLEADERBOARD = function(msg)
         if arg and strlower(arg) == "confirm" then
             wipe(db.casters)
             wipe(session.casters)
+            ns.RefreshLeaderboard()
             print("|cff33ff99BuffLeaderboard|r: all-time data for this character reset.")
         else
             print("|cff33ff99BuffLeaderboard|r: this wipes all-time data for this character. Type |cffffff00/blb reset confirm|r to proceed.")
         end
     elseif cmd == "options" or cmd == "config" then
         ns.OpenOptions()
-    elseif cmd == "show" or cmd == "hide" then
-        print("|cff33ff99BuffLeaderboard|r: frame UI not built yet — use /blb dump.")
     else
         print("|cff33ff99BuffLeaderboard|r commands:")
+        print("  /blb — toggle the leaderboard window")
         print("  /blb dump — all casters and their per-buff counts")
         print("  /blb dump session — this session only")
         print("  /blb dump <buff name> — the ladder for one buff")
