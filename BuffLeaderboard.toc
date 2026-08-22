@@ -5,8 +5,7 @@
 ## Author: Ryan
 ## Version: @project-version@
 ## SavedVariables: BuffLeaderboardDB
-# Uncomment with the project id once the CurseForge project exists:
-# ## X-Curse-Project-ID: 000000
+## X-Curse-Project-ID: 1663190
 
 src\Spells.lua
 src\Core.lua
