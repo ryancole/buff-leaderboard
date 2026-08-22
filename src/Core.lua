@@ -229,7 +229,7 @@ local function OnWhisper(text, sender, guid)
     local rec = db and db.casters[guid]
     if rec then
         SendChatMessage(
-            ("Your rank: %d, total casts: %d"):format(GetRank(guid), rec.total),
+            ("Your leaderboard rank: %d, total casts: %d"):format(GetRank(guid), rec.total),
             "WHISPER", nil, sender)
     else
         SendChatMessage("You haven't cast any tracked buffs on me yet!",
@@ -292,7 +292,7 @@ local function OnCombatLogEvent()
         local now = GetTime()
         if not lastWhisper[sourceGUID] or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN then
             lastWhisper[sourceGUID] = now
-            local details = ("your rank: %d, total casts: %d"):format(
+            local details = ("your leaderboard rank: %d, total casts: %d"):format(
                 GetRank(sourceGUID), total)
             if passed then
                 details = ("%s, overtook: %s"):format(details, table.concat(passed, ", "))
