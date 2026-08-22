@@ -26,10 +26,10 @@ read_globals = {
     "wipe",
     -- API functions
     "CombatLogGetCurrentEventInfo", "CreateFrame", "GetPlayerInfoByGUID",
-    "GetRealmName", "GetSpellInfo", "GetTime", "SendChatMessage", "UnitGUID",
-    "UnitName",
+    "GetRealmName", "GetSpellInfo", "GetTime", "IsInGroup", "IsInGuild",
+    "IsInRaid", "SendChatMessage", "UnitGUID", "UnitName",
     -- Namespaces
-    "C_AddOns", "C_Spell", "Settings",
+    "C_AddOns", "C_Spell", "MenuUtil", "Settings",
     -- ScrollBox utilities
     "CreateDataProvider", "CreateScrollBoxListLinearView", "ScrollUtil",
     -- Frames, fonts, and constants

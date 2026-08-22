@@ -16,6 +16,37 @@ local RANK_COLORS = {
     [3] = "|cffcd7f32",
 }
 
+local ANNOUNCE_TOP_N = 5
+
+-- Channels offered by the announce menu; ones whose availability check
+-- fails are shown disabled
+local ANNOUNCE_CHANNELS = {
+    { label = "Say",   chatType = "SAY" },
+    { label = "Yell",  chatType = "YELL" },
+    { label = "Party", chatType = "PARTY", available = IsInGroup },
+    { label = "Raid",  chatType = "RAID",  available = IsInRaid },
+    { label = "Guild", chatType = "GUILD", available = IsInGuild },
+}
+
+-- Sends the visible ladder's top entries to a chat channel, honoring the
+-- window's current all-time/session scope. Plain text: chat strips
+-- escape codes, so no class colors here.
+local function AnnounceTop(chatType)
+    if not selectedBuff then return end
+    local ladder = ns.GetLadder(selectedBuff, sessionOnly)
+    local n = math.min(#ladder, ANNOUNCE_TOP_N)
+    if n == 0 then return end
+    SendChatMessage(("Top %d %s casters on me (%s):"):format(
+        n, selectedBuff, sessionOnly and "this session" or "all-time"), chatType)
+    for i = 1, n do
+        local entry = ladder[i]
+        local display = entry.realm
+            and (entry.name .. "-" .. entry.realm) or entry.name
+        SendChatMessage(("%d. %s - %d casts"):format(
+            i, display or "?", entry.count), chatType)
+    end
+end
+
 local function Refresh()
     local buffs = ns.GetRecordedBuffs(sessionOnly)
 
@@ -42,6 +73,7 @@ local function Refresh()
         frame.LadderHeader:SetText(sessionOnly and "this session" or "all-time")
     end
     frame.Empty:SetShown(#buffs == 0)
+    frame.AnnounceButton:SetEnabled(#ladder > 0)
 end
 
 -- Called by Core.lua whenever a tracked buff is recorded or a caster is
@@ -178,6 +210,27 @@ local function CreateWindow()
     local sessionLabel = sessionCheck:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     sessionLabel:SetText("This session only")
     sessionLabel:SetPoint("LEFT", sessionCheck, "RIGHT", 3, 1)
+
+    -- Announce the selected buff's top casters; the channel is picked
+    -- from a context menu so misclicks can't spam anything
+    local announce = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    announce:SetSize(130, 22)
+    announce:SetPoint("BOTTOMRIGHT", -8, 6)
+    announce:SetText(("Announce Top %d"):format(ANNOUNCE_TOP_N))
+    announce:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(owner, rootDescription)
+            rootDescription:CreateTitle("Announce to")
+            for _, channel in ipairs(ANNOUNCE_CHANNELS) do
+                local button = rootDescription:CreateButton(channel.label, function()
+                    AnnounceTop(channel.chatType)
+                end)
+                if channel.available and not channel.available() then
+                    button:SetEnabled(false)
+                end
+            end
+        end)
+    end)
+    frame.AnnounceButton = announce
 
     frame:SetScript("OnShow", Refresh)
     -- The frame is born visible, so OnShow doesn't fire for the first open
