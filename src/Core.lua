@@ -40,6 +40,8 @@ ns.optionDefaults = {
     announce = false,      -- chat message when a tracked buff lands on you
     whisperThanks = false, -- whisper the caster their rank and total
     rankReplies = false,   -- auto-reply to "!rank" whispers with the sender's rank
+    minimapAngle = 220,    -- minimap button position, degrees around the rim
+    minimapButton = true,  -- show the minimap button
 }
 
 local function InitDB()
@@ -410,6 +412,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if ... == ADDON_NAME then
             InitDB()
             ns.SetupOptions()
+            ns.SetupMinimapButton()
             self:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
