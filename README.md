@@ -28,6 +28,18 @@ New-Item -ItemType Junction `
 `/reload` in-game picks up Lua changes; a full restart is only needed for
 `.toc` changes.
 
+## Releasing
+
+Releases are built by the [BigWigs packager](https://github.com/BigWigsMods/packager)
+via GitHub Actions (`.github/workflows/release.yml`). Pushing a tag like
+`v0.2.0` packages the addon (with `@project-version@` in the .toc replaced
+by the tag) and uploads it to CurseForge using the `CF_API_KEY` repo secret
+and the `## X-Curse-Project-ID` in the .toc.
+
+```bash
+git tag v0.2.0 && git push origin master --tags
+```
+
 ## Commands
 
 - `/blb dump` — all-time leaderboard to chat

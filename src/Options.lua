@@ -172,7 +172,11 @@ function ns.SetupOptions()
     header:SetPoint("TOPLEFT", 15, -10)
     header:SetText(NORMAL_FONT_COLOR:WrapTextInColorCode("Buff Leaderboard"))
 
+    -- Substituted by the packager at release; raw keyword means a dev copy
     local version = C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version")
+    if not version or version:find("@") then
+        version = "dev"
+    end
     local versionText = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     versionText:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -5)
     versionText:SetText(WHITE_FONT_COLOR:WrapTextInColorCode(("Version: %s"):format(version or "dev")))

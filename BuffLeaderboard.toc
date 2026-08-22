@@ -3,8 +3,10 @@
 ## Notes: Tracks external buffs cast on you and keeps an all-time leaderboard per caster.
 ## Category: Buffs & Debuffs
 ## Author: Ryan
-## Version: 0.1.0
+## Version: @project-version@
 ## SavedVariables: BuffLeaderboardDB
+# Uncomment with the project id once the CurseForge project exists:
+# ## X-Curse-Project-ID: 000000
 
 src\Spells.lua
 src\Core.lua

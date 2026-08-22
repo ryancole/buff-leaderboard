@@ -1,0 +1,5 @@
+package-as: BuffLeaderboard
+
+ignore:
+  - README.md
+  - .gitattributes
