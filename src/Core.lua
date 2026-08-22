@@ -108,6 +108,34 @@ function ns.RemoveSpell(key)
     opts.tracked[key] = nil
 end
 
+-- Leaderboard for the options panel: sorted by total desc, rank filled in.
+-- db is nil until PLAYER_LOGIN, but the panel can only be opened after that.
+function ns.GetCasterList()
+    local list = {}
+    if not db then return list end
+    for guid, rec in next, db.casters do
+        list[#list + 1] = {
+            guid = guid,
+            name = rec.name,
+            realm = rec.realm,
+            total = rec.total,
+        }
+    end
+    table.sort(list, function(a, b) return a.total > b.total end)
+    for i, entry in ipairs(list) do
+        entry.rank = i
+    end
+    return list
+end
+
+-- Drops a player from this character's leaderboard (all-time and session)
+function ns.ForgetCaster(guid)
+    if db then
+        db.casters[guid] = nil
+    end
+    session.casters[guid] = nil
+end
+
 -- Sorted array of tracked entries (live tables, with .key filled in)
 function ns.GetTrackedList()
     local list = {}

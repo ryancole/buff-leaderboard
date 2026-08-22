@@ -100,6 +100,67 @@ local function MakeSpellList(parent)
     return container
 end
 
+-- Fixed-height scrollable list of recorded casters in leaderboard order,
+-- with a forget button per row to reset that player's rank and history.
+local function MakeCasterList(parent)
+    local container = CreateFrame("Frame", nil, parent, "InsetFrameTemplate")
+
+    local scrollBar = CreateFrame("EventFrame", nil, container, "MinimalScrollBar")
+    scrollBar:SetPoint("TOPRIGHT", -10, -5)
+    scrollBar:SetPoint("BOTTOMRIGHT", -10, 5)
+    local scrollBox = CreateFrame("Frame", nil, container, "WowScrollBoxList")
+    scrollBox:SetPoint("TOPLEFT", 2, -2)
+    scrollBox:SetPoint("BOTTOMRIGHT", scrollBar, "BOTTOMLEFT", -3, 0)
+
+    local function UpdateList()
+        scrollBox:SetDataProvider(CreateDataProvider(ns.GetCasterList()), true)
+    end
+    container.UpdateList = UpdateList
+
+    local view = CreateScrollBoxListLinearView()
+    view:SetElementExtent(24)
+    view:SetElementInitializer("Button", function(frame, elementData)
+        frame:SetPushedTextOffset(0, 0)
+        frame:SetHighlightAtlas("search-highlight")
+        frame:SetNormalFontObject(GameFontHighlight)
+        frame.guid = elementData.guid
+        if not frame.Delete then
+            frame.Delete = CreateFrame("Button", nil, frame)
+            frame.Delete:SetNormalAtlas("transmog-icon-remove")
+            frame.Delete:SetPoint("RIGHT", -5, 0)
+            frame.Delete:SetSize(15, 15)
+            frame.Delete:SetScript("OnClick", function()
+                ns.ForgetCaster(frame.guid)
+                GameTooltip:Hide()
+                UpdateList()
+            end)
+            frame.Delete:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Forget this player (resets their rank and history)")
+                GameTooltip:Show()
+                self:SetAlpha(0.5)
+            end)
+            frame.Delete:SetScript("OnLeave", function(self)
+                GameTooltip:Hide()
+                self:SetAlpha(1)
+            end)
+        end
+        local display = elementData.realm
+            and (elementData.name .. "-" .. elementData.realm)
+            or elementData.name
+        frame:SetText(("%d. %s (%d)"):format(elementData.rank, display or "?", elementData.total))
+        local text = frame:GetFontString()
+        text:SetPoint("LEFT", 8, 0)
+        text:SetPoint("RIGHT", -24, 0)
+        text:SetJustifyH("LEFT")
+    end)
+    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+
+    container:SetScript("OnShow", UpdateList)
+
+    return container
+end
+
 -- Called by Core.lua on ADDON_LOADED, after SavedVariables exist.
 function ns.SetupOptions()
     local opts = BuffLeaderboardDB.options
@@ -136,7 +197,7 @@ function ns.SetupOptions()
     listHeader:SetText("Tracked Buffs")
 
     local list = MakeSpellList(panel)
-    list:SetSize(320, 190)
+    list:SetSize(320, 150)
 
     -- Add row: buff name or spell id + Add button, above the list
     local addBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
@@ -170,6 +231,15 @@ function ns.SetupOptions()
     addBox:SetScript("OnEscapePressed", function(self)
         self:ClearFocus()
     end)
+
+    -- Recorded casters, below the tracked buffs
+    local casterHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    casterHeader:SetPoint("TOPLEFT", list, "BOTTOMLEFT", 0, -12)
+    casterHeader:SetText("Recorded Casters")
+
+    local casterList = MakeCasterList(panel)
+    casterList:SetPoint("TOPLEFT", casterHeader, "BOTTOMLEFT", 0, -6)
+    casterList:SetSize(320, 130)
 
     -- Required no-op handlers for canvas settings panels
     panel.OnCommit = function() end
