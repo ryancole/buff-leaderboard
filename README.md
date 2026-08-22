@@ -56,5 +56,8 @@ git tag v0.2.0 && git push origin master --tags
 
 With the auto-reply option enabled, other players can whisper you `!rank`
 for their rank on every buff ladder they appear on, or `!rank <buff name>`
-(e.g. `!rank innervate`) for a single buff. All rankings are per-buff;
-there is no combined leaderboard.
+(e.g. `!rank innervate`) for a single buff. Each reply is a ladder excerpt
+showing the #1 caster plus the players one spot above and below the sender,
+e.g. `Innervate: #1 Moonpriest (x50) ... #4 Baddruid (x12), #5 you (x10),
+#6 Weakdruid (x9)`. All rankings are per-buff; there is no combined
+leaderboard.

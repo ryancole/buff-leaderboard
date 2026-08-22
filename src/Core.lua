@@ -257,14 +257,66 @@ local function GetSpellRank(guid, spellName)
     return rank
 end
 
+-- One-line ladder excerpt for a buff: the #1 caster, the sender's immediate
+-- neighbors, and the sender themselves, in ladder order, e.g.
+-- "Innervate: #1 Moonpriest (x50) ... #4 Baddruid (x12), #5 you (x10),
+-- #6 Weakdruid (x9)". Ranks are by cast count (ties share a rank, matching
+-- GetSpellRank); "..." marks skipped entries between #1 and the sender's
+-- neighborhood. nil if the sender isn't on that ladder.
+local function FormatRankContext(guid, spellName)
+    local ladder = {}
+    for g, rec in next, db.casters do
+        local count = rec.spells[spellName]
+        if count then
+            ladder[#ladder + 1] = { guid = g, name = rec.name, count = count }
+        end
+    end
+    table.sort(ladder, function(a, b)
+        if a.count ~= b.count then
+            return a.count > b.count
+        end
+        return (a.name or "") < (b.name or "")
+    end)
+
+    local mine
+    for i, entry in ipairs(ladder) do
+        entry.rank = (i > 1 and entry.count == ladder[i - 1].count)
+            and ladder[i - 1].rank or i
+        if entry.guid == guid then mine = i end
+    end
+    if not mine then return nil end
+
+    local show = { 1 }
+    if mine - 1 > 1 then show[#show + 1] = mine - 1 end
+    if mine > 1 then show[#show + 1] = mine end
+    if mine < #ladder then show[#show + 1] = mine + 1 end
+
+    local reply, prev = spellName .. ":", nil
+    for _, i in ipairs(show) do
+        local entry = ladder[i]
+        local who = entry.guid == guid and "you" or entry.name
+        local piece = ("#%d %s (x%d)"):format(entry.rank, who, entry.count)
+        if not prev then
+            reply = reply .. " " .. piece
+        elseif i - prev > 1 then
+            reply = reply .. " ... " .. piece
+        else
+            reply = reply .. ", " .. piece
+        end
+        prev = i
+    end
+    return reply
+end
+
 local lastWhisper = {} -- [guid] = GetTime() of last thank-you whisper
 local WHISPER_COOLDOWN = 300 -- at most one thank-you per caster per 5 min
 
 local lastRankReply = {} -- [guid] = GetTime() of last !rank auto-reply
 local RANK_REPLY_COOLDOWN = 30 -- per sender, so !rank can't be spammed
 
--- Incoming whisper: reply to "!rank" with the sender's overall standing, or
--- "!rank <buff>" with their standing for that buff
+-- Incoming whisper: reply to "!rank" with a ladder excerpt for every buff
+-- the sender appears on (one whisper each), or "!rank <buff>" for just that
+-- buff. Excerpts show #1 plus the sender's immediate neighbors for context.
 local function OnWhisper(text, sender, guid)
     if not opts.rankReplies then return end
     text = strlower(strtrim(text or ""))
@@ -286,35 +338,25 @@ local function OnWhisper(text, sender, guid)
 
     local spellArg = strtrim(text:sub(6))
     if spellArg == "" then
-        -- Their rank on every buff ladder they appear on, biggest first,
-        -- packed into the 255-character whisper limit
+        -- One excerpt per buff ladder they appear on, biggest count first.
+        -- Each fits a whisper on its own; rec.spells is bounded by the
+        -- tracked list, so this stays a handful of lines at most.
         local ranks = {}
         for name, count in next, rec.spells do
             ranks[#ranks + 1] = { name = name, count = count }
         end
         table.sort(ranks, function(a, b) return a.count > b.count end)
-        local reply
         for _, entry in ipairs(ranks) do
-            local piece = ("%s: rank %d (x%d)"):format(
-                entry.name, GetSpellRank(guid, entry.name), entry.count)
-            if not reply then
-                reply = piece
-            elseif #reply + #piece + 2 <= 240 then
-                reply = reply .. ", " .. piece
-            else
-                break
-            end
+            SendChatMessage(FormatRankContext(guid, entry.name),
+                "WHISPER", nil, sender)
         end
-        SendChatMessage(reply, "WHISPER", nil, sender)
         return
     end
 
     -- Case-insensitive match against the buffs they have actually cast
-    for name, count in next, rec.spells do
+    for name in next, rec.spells do
         if strlower(name) == spellArg then
-            SendChatMessage(
-                ("Your %s rank: %d, casts: %d"):format(
-                    name, GetSpellRank(guid, name), count),
+            SendChatMessage(FormatRankContext(guid, name),
                 "WHISPER", nil, sender)
             return
         end
