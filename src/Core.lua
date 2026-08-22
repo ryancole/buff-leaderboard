@@ -39,6 +39,7 @@ ns.optionDefaults = {
     trackSelf = false,     -- count tracked buffs you cast on yourself
     announce = false,      -- chat message when a tracked buff lands on you
     whisperThanks = false, -- whisper the caster their rank and total
+    rankReplies = false,   -- auto-reply to "!rank" whispers with the sender's rank
 }
 
 local function InitDB()
@@ -210,6 +211,32 @@ end
 local lastWhisper = {} -- [guid] = GetTime() of last thank-you whisper
 local WHISPER_COOLDOWN = 300 -- at most one thank-you per caster per 5 min
 
+local lastRankReply = {} -- [guid] = GetTime() of last !rank auto-reply
+local RANK_REPLY_COOLDOWN = 30 -- per sender, so !rank can't be spammed
+
+-- Incoming whisper: reply to "!rank" with the sender's standing
+local function OnWhisper(text, sender, guid)
+    if not opts.rankReplies then return end
+    if strlower(strtrim(text or "")) ~= "!rank" then return end
+    if not guid or guid == playerGUID then return end
+
+    local now = GetTime()
+    if lastRankReply[guid] and now - lastRankReply[guid] < RANK_REPLY_COOLDOWN then
+        return
+    end
+    lastRankReply[guid] = now
+
+    local rec = db and db.casters[guid]
+    if rec then
+        SendChatMessage(
+            ("Your rank: %d, total casts: %d"):format(GetRank(guid), rec.total),
+            "WHISPER", nil, sender)
+    else
+        SendChatMessage("You haven't cast any tracked buffs on me yet!",
+            "WHISPER", nil, sender)
+    end
+end
+
 local function OnCombatLogEvent()
     local _, subevent, _, sourceGUID, sourceName, sourceFlags, _,
         destGUID, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
@@ -284,9 +311,14 @@ end
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
-frame:SetScript("OnEvent", function(self, event, arg1)
-    if event == "ADDON_LOADED" then
-        if arg1 == ADDON_NAME then
+frame:SetScript("OnEvent", function(self, event, ...)
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        OnCombatLogEvent()
+    elseif event == "CHAT_MSG_WHISPER" then
+        local text, sender = ...
+        OnWhisper(text, sender, select(12, ...)) -- arg 12 is the sender GUID
+    elseif event == "ADDON_LOADED" then
+        if ... == ADDON_NAME then
             InitDB()
             ns.SetupOptions()
             self:UnregisterEvent("ADDON_LOADED")
@@ -294,8 +326,7 @@ frame:SetScript("OnEvent", function(self, event, arg1)
     elseif event == "PLAYER_LOGIN" then
         InitChar()
         self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        OnCombatLogEvent()
+        self:RegisterEvent("CHAT_MSG_WHISPER")
     end
 end)
 

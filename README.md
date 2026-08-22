@@ -36,3 +36,6 @@ New-Item -ItemType Junction `
 - `/blb untrack <name>` — remove a buff from the tracked list
 - `/blb options` — open the settings panel
 - `/blb reset confirm` — wipe this character's data
+
+With the auto-reply option enabled, other players can whisper you `!rank`
+to get their current rank and total back automatically.

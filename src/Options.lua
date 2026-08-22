@@ -192,8 +192,13 @@ function ns.SetupOptions()
         function(v) opts.whisperThanks = v end)
     whisper:SetPoint("TOPLEFT", announce, "BOTTOMLEFT", 0, -2)
 
+    local rankReplies = MakeCheckbox(panel, "Auto-reply to !rank whispers with the sender's rank",
+        function() return opts.rankReplies end,
+        function(v) opts.rankReplies = v end)
+    rankReplies:SetPoint("TOPLEFT", whisper, "BOTTOMLEFT", 0, -2)
+
     local listHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    listHeader:SetPoint("TOPLEFT", whisper, "BOTTOMLEFT", 4, -20)
+    listHeader:SetPoint("TOPLEFT", rankReplies, "BOTTOMLEFT", 4, -20)
     listHeader:SetText("Tracked Buffs")
 
     local list = MakeSpellList(panel)
@@ -239,7 +244,7 @@ function ns.SetupOptions()
 
     local casterList = MakeCasterList(panel)
     casterList:SetPoint("TOPLEFT", casterHeader, "BOTTOMLEFT", 0, -6)
-    casterList:SetSize(320, 130)
+    casterList:SetSize(320, 110)
 
     -- Required no-op handlers for canvas settings panels
     panel.OnCommit = function() end
