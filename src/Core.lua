@@ -230,20 +230,48 @@ local function OnCombatLogEvent()
     -- Players only: drops pets, guardians, and NPC-applied copies
     if band(sourceFlags, PLAYER_TYPE) == 0 then return end
 
+    local oldTotal = db.casters[sourceGUID] and db.casters[sourceGUID].total or 0
     local total = Record(sourceGUID, sourceName, spell.name)
-    if opts.announce then
-        local name = strsplit("-", sourceName)
-        print(("|cff33ff99BuffLeaderboard|r: %s -> you: %s (x%d all-time)"):format(
-            name, spell.name, total))
+
+    -- Overtake detection: rank is 1 + count of strictly-higher totals, so a
+    -- caster going from oldTotal to oldTotal+1 passes exactly the players
+    -- still sitting at oldTotal
+    local passed
+    if oldTotal > 0 then
+        for guid, rec in next, db.casters do
+            if guid ~= sourceGUID and rec.total == oldTotal then
+                passed = passed or {}
+                passed[#passed + 1] = rec.name or "?"
+            end
+        end
+        if passed then
+            table.sort(passed)
+        end
     end
 
+    if opts.announce then
+        local name = strsplit("-", sourceName)
+        local msg = ("|cff33ff99BuffLeaderboard|r: %s -> you: %s (x%d all-time)"):format(
+            name, spell.name, total)
+        if passed then
+            msg = ("%s - overtakes %s for rank %d!"):format(
+                msg, table.concat(passed, ", "), GetRank(sourceGUID))
+        end
+        print(msg)
+    end
+
+    -- Overtakes landing during the cooldown window go unmentioned by design
     if opts.whisperThanks and sourceGUID ~= playerGUID then
         local now = GetTime()
         if not lastWhisper[sourceGUID] or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN then
             lastWhisper[sourceGUID] = now
+            local details = ("your rank: %d, total casts: %d"):format(
+                GetRank(sourceGUID), total)
+            if passed then
+                details = ("%s, overtook: %s"):format(details, table.concat(passed, ", "))
+            end
             SendChatMessage(
-                ("Thanks for %s! (your rank: %d, total casts: %d)"):format(
-                    spell.name, GetRank(sourceGUID), total),
+                ("Thanks for %s! (%s)"):format(spell.name, details),
                 "WHISPER", nil, sourceName)
         end
     end
