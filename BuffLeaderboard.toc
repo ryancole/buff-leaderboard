@@ -4,10 +4,12 @@
 ## Category: Buffs & Debuffs
 ## Author: Ryan
 ## Version: @project-version@
+## IconTexture: Interface\AddOns\BuffLeaderboard\assets\logo.tga
 ## SavedVariables: BuffLeaderboardDB
 ## X-Curse-Project-ID: 1663190
 
 src\Spells.lua
 src\Core.lua
 src\Leaderboard.lua
+src\MinimapButton.lua
 src\Options.lua

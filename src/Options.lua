@@ -201,8 +201,16 @@ function ns.SetupOptions()
         function(v) opts.rankReplies = v end)
     rankReplies:SetPoint("TOPLEFT", whisper, "BOTTOMLEFT", 0, -2)
 
+    local minimapButton = MakeCheckbox(panel, "Show minimap button",
+        function() return opts.minimapButton end,
+        function(v)
+            opts.minimapButton = v
+            ns.SetMinimapButtonShown(v)
+        end)
+    minimapButton:SetPoint("TOPLEFT", rankReplies, "BOTTOMLEFT", 0, -2)
+
     local listHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    listHeader:SetPoint("TOPLEFT", rankReplies, "BOTTOMLEFT", 4, -20)
+    listHeader:SetPoint("TOPLEFT", minimapButton, "BOTTOMLEFT", 4, -20)
     listHeader:SetText("Tracked Buffs")
 
     local list = MakeSpellList(panel)

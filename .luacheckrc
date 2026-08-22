@@ -25,15 +25,16 @@ read_globals = {
     "bit", "date", "time", "strlower", "strsplit", "strtrim", "tinsert",
     "wipe",
     -- API functions
-    "CombatLogGetCurrentEventInfo", "CreateFrame", "GetPlayerInfoByGUID",
-    "GetRealmName", "GetSpellInfo", "GetTime", "IsInGroup", "IsInGuild",
-    "IsInRaid", "SendChatMessage", "UnitGUID", "UnitName",
+    "CombatLogGetCurrentEventInfo", "CreateFrame", "GetCursorPosition",
+    "GetPlayerInfoByGUID", "GetRealmName", "GetSpellInfo", "GetTime",
+    "IsInGroup", "IsInGuild", "IsInRaid", "SendChatMessage", "UnitGUID",
+    "UnitName",
     -- Namespaces
     "C_AddOns", "C_Spell", "MenuUtil", "Settings",
     -- ScrollBox utilities
     "CreateDataProvider", "CreateScrollBoxListLinearView", "ScrollUtil",
     -- Frames, fonts, and constants
     "COMBATLOG_OBJECT_TYPE_PLAYER", "GameFontHighlight", "GameFontNormal",
-    "GameTooltip", "NORMAL_FONT_COLOR", "RAID_CLASS_COLORS", "UIErrorsFrame",
-    "UIParent", "UISpecialFrames", "WHITE_FONT_COLOR",
+    "GameTooltip", "Minimap", "NORMAL_FONT_COLOR", "RAID_CLASS_COLORS",
+    "UIErrorsFrame", "UIParent", "UISpecialFrames", "WHITE_FONT_COLOR",
 }

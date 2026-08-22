@@ -11,6 +11,8 @@ of who has given you the most, across sessions.
 - `src/Spells.lua` — default tracked buffs, seeded into SavedVariables on
   first run; after that the user-managed list is authoritative
 - `src/Core.lua` — SavedVariables, combat log handler, slash commands
+- `src/Leaderboard.lua` — the in-game leaderboard window (`/blb`)
+- `src/MinimapButton.lua` — minimap button that toggles the leaderboard window
 - `src/Options.lua` — settings panel (Options -> AddOns -> Buff Leaderboard)
 
 ## Developing
@@ -42,6 +44,8 @@ git tag v0.2.0 && git push origin master --tags
 
 ## Commands
 
+- `/blb` — toggle the leaderboard window (the minimap button does the same;
+  drag it to move it around the minimap rim, or hide it in the settings panel)
 - `/blb dump` — all casters and their per-buff counts
 - `/blb dump session` — this session only
 - `/blb dump <buff name>` — the all-time ladder for one buff

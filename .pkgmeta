@@ -1,7 +1,10 @@
 package-as: BuffLeaderboard
 
+# assets ships only the in-game .tga icons; the svg/png masters stay
+# repo-only (the png is the CurseForge profile art)
 ignore:
   - README.md
   - .gitattributes
-  - assets
+  - assets/logo.svg
+  - assets/logo.png
   - etc
