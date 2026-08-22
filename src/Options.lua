@@ -126,8 +126,13 @@ function ns.SetupOptions()
         function(v) opts.announce = v end)
     announce:SetPoint("TOPLEFT", trackSelf, "BOTTOMLEFT", 0, -2)
 
+    local whisper = MakeCheckbox(panel, "Whisper casters a thank-you with their rank and total",
+        function() return opts.whisperThanks end,
+        function(v) opts.whisperThanks = v end)
+    whisper:SetPoint("TOPLEFT", announce, "BOTTOMLEFT", 0, -2)
+
     local listHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    listHeader:SetPoint("TOPLEFT", announce, "BOTTOMLEFT", 4, -20)
+    listHeader:SetPoint("TOPLEFT", whisper, "BOTTOMLEFT", 4, -20)
     listHeader:SetText("Tracked Buffs")
 
     local list = MakeSpellList(panel)

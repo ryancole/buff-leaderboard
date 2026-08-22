@@ -36,8 +36,9 @@ local TRACKED = {
 -- }
 
 ns.optionDefaults = {
-    trackSelf = false, -- count tracked buffs you cast on yourself
-    announce = false,  -- chat message when a tracked buff lands on you
+    trackSelf = false,     -- count tracked buffs you cast on yourself
+    announce = false,      -- chat message when a tracked buff lands on you
+    whisperThanks = false, -- whisper the caster their rank and total
 }
 
 local function InitDB()
@@ -165,6 +166,22 @@ local function Record(guid, sourceName, group)
     return allTimeTotal
 end
 
+-- All-time rank of a caster: 1 + number of casters with a higher total
+local function GetRank(guid)
+    local mine = db.casters[guid]
+    if not mine then return nil end
+    local rank = 1
+    for _, rec in next, db.casters do
+        if rec.total > mine.total then
+            rank = rank + 1
+        end
+    end
+    return rank
+end
+
+local lastWhisper = {} -- [guid] = GetTime() of last thank-you whisper
+local WHISPER_COOLDOWN = 300 -- at most one thank-you per caster per 5 min
+
 local function OnCombatLogEvent()
     local _, subevent, _, sourceGUID, sourceName, sourceFlags, _,
         destGUID, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
@@ -190,6 +207,17 @@ local function OnCombatLogEvent()
         local name = strsplit("-", sourceName)
         print(("|cff33ff99BuffLeaderboard|r: %s -> you: %s (x%d all-time)"):format(
             name, spell.name, total))
+    end
+
+    if opts.whisperThanks and sourceGUID ~= playerGUID then
+        local now = GetTime()
+        if not lastWhisper[sourceGUID] or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN then
+            lastWhisper[sourceGUID] = now
+            SendChatMessage(
+                ("Thanks for %s! (your rank: %d, total casts: %d)"):format(
+                    spell.name, GetRank(sourceGUID), total),
+                "WHISPER", nil, sourceName)
+        end
     end
 end
 
