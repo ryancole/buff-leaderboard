@@ -9,4 +9,5 @@
 
 src\Spells.lua
 src\Core.lua
+src\Leaderboard.lua
 src\Options.lua
