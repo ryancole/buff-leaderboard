@@ -6,6 +6,7 @@ local PLAYER_TYPE = COMBATLOG_OBJECT_TYPE_PLAYER
 local playerGUID
 local db -- this character's branch of BuffLeaderboardDB
 local opts -- BuffLeaderboardDB.options (account-wide)
+local icons -- BuffLeaderboardDB.icons: [buff display name] = icon texture
 local session = { casters = {} } -- in-memory only, same shape as db
 ns.session = session
 
@@ -49,6 +50,10 @@ local function InitDB()
     BuffLeaderboardDB = BuffLeaderboardDB or { version = 1, chars = {} }
     BuffLeaderboardDB.options = BuffLeaderboardDB.options or {}
     opts = BuffLeaderboardDB.options
+    -- Buff icon cache for the leaderboard window, filled in from combat
+    -- log spell ids as buffs land. Account-wide: icons don't vary per char.
+    BuffLeaderboardDB.icons = BuffLeaderboardDB.icons or {}
+    icons = BuffLeaderboardDB.icons
     for k, v in next, ns.optionDefaults do
         if opts[k] == nil then
             opts[k] = v
@@ -79,6 +84,21 @@ end
 -- Tracked-list management (used by Options.lua and slash commands)
 -------------------------------------------------------------------------------
 
+-- Icon texture for a spell id or name, or nil if the client can't resolve
+-- it (name lookups only work for spells in your own spellbook)
+local function SpellTexture(spell)
+    if C_Spell and C_Spell.GetSpellTexture then
+        return C_Spell.GetSpellTexture(spell)
+    end
+    return (select(3, GetSpellInfo(spell)))
+end
+
+-- Icon for a recorded buff: cached from the combat log when possible,
+-- name lookup as a best-effort fallback for pre-cache history
+function ns.GetBuffIcon(name)
+    return icons[name] or SpellTexture(name)
+end
+
 local function ResolveSpellName(input)
     local id = tonumber(input)
     if not id then
@@ -105,6 +125,12 @@ function ns.AddSpell(input)
         return false, ("%s is already tracked"):format(name)
     end
     opts.tracked[key] = { name = name, enabled = true, countRefresh = true }
+    -- Tracking by id tells us the icon right away; tracking by name waits
+    -- for the first sighting in the combat log
+    local id = tonumber(input)
+    if id and not icons[name] then
+        icons[name] = SpellTexture(id)
+    end
     return true, name
 end
 
@@ -418,7 +444,7 @@ end
 
 local function OnCombatLogEvent()
     local _, subevent, _, sourceGUID, sourceName, sourceFlags, _,
-        destGUID, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
+        destGUID, _, _, _, spellId, spellName = CombatLogGetCurrentEventInfo()
 
     local mode = TRACKED[subevent]
     if not mode then return end
@@ -437,6 +463,12 @@ local function OnCombatLogEvent()
     if sourceGUID == playerGUID and not opts.trackSelf then return end
     -- Players only: drops pets, guardians, and NPC-applied copies
     if band(sourceFlags, PLAYER_TYPE) == 0 then return end
+
+    -- First sighting caches the buff's icon for the leaderboard window;
+    -- ids are stable, so once is enough
+    if spellId and spellId > 0 and not icons[spell.name] then
+        icons[spell.name] = SpellTexture(spellId)
+    end
 
     -- Ranks, overtakes, and whispers are all per-buff: "who Innervates me
     -- the most" rather than one combined ladder

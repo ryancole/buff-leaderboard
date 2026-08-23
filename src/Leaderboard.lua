@@ -103,14 +103,17 @@ local function MakeScrollList(parent, rowInitializer)
     return container, scrollBox
 end
 
--- Left pane row: a buff name; clicking selects its ladder
+-- Left pane row: spell icon and buff name; clicking selects its ladder
 local function InitBuffRow(row, buffName)
     row:SetPushedTextOffset(0, 0)
     row:SetHighlightAtlas("search-highlight")
     -- Gold for the selected buff, white for the rest
     row:SetNormalFontObject(
         buffName == selectedBuff and GameFontNormal or GameFontHighlight)
-    row:SetText(buffName)
+    -- Question mark until the buff's icon has been cached from a sighting,
+    -- so names stay aligned either way
+    local icon = ns.GetBuffIcon(buffName) or "Interface\\Icons\\INV_Misc_QuestionMark"
+    row:SetText(("|T%s:16|t %s"):format(icon, buffName))
     local text = row:GetFontString()
     text:SetPoint("LEFT", 8, 0)
     text:SetPoint("RIGHT", -8, 0)
