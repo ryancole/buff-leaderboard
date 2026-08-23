@@ -121,7 +121,17 @@ local function InitBuffRow(row, buffName)
     end)
 end
 
--- Right pane row: rank, class-colored caster, cast count
+-- Inline escape for a caster's class icon, cropped out of the class
+-- spritesheet. entry.class can be nil until the client has resolved the
+-- caster's GUID (see Core.lua), so those rows get no icon.
+local function ClassIcon(class)
+    local coords = class and CLASS_ICON_TCOORDS[class]
+    if not coords then return "" end
+    return ("|TInterface\\TargetingFrame\\UI-Classes-Circles:14:14:0:0:256:256:%d:%d:%d:%d|t "):format(
+        coords[1] * 256, coords[2] * 256, coords[3] * 256, coords[4] * 256)
+end
+
+-- Right pane row: rank, class icon, class-colored caster, cast count
 local function InitLadderRow(row, entry)
     row:SetPushedTextOffset(0, 0)
     row:SetHighlightAtlas("search-highlight")
@@ -134,8 +144,9 @@ local function InitLadderRow(row, entry)
     local rank = row:GetOrderIndex()
     local rankColor = RANK_COLORS[rank] or "|cffcccccc"
     local display = entry.realm and (entry.name .. "-" .. entry.realm) or entry.name
-    row:SetText(("%s%d.|r %s%s|r"):format(
-        rankColor, rank, ns.ClassColor(entry.class), display or "?"))
+    row:SetText(("%s%d.|r %s%s%s|r"):format(
+        rankColor, rank, ClassIcon(entry.class),
+        ns.ClassColor(entry.class), display or "?"))
     local text = row:GetFontString()
     text:SetPoint("LEFT", 8, 0)
     text:SetPoint("RIGHT", row.Count, "LEFT", -8, 0)
