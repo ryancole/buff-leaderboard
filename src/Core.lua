@@ -311,6 +311,14 @@ end
 local lastWhisper = {} -- [guid] = GetTime() of last thank-you whisper
 local WHISPER_COOLDOWN = 300 -- at most one thank-you per caster per 5 min
 
+-- Cast counts worth celebrating in the thank-you whisper: the early ones
+-- land quickly enough to hook people, then every 100th. Every milestone
+-- ends in 0 or 5, so the "th" suffix is always correct.
+local function IsMilestone(count)
+    if count == 10 or count == 25 or count == 50 then return true end
+    return count >= 100 and count % 100 == 0
+end
+
 local lastRankReply = {} -- [guid] = GetTime() of last !rank auto-reply
 local RANK_REPLY_COOLDOWN = 30 -- per sender, so !rank can't be spammed
 
@@ -420,18 +428,25 @@ local function OnCombatLogEvent()
         print(msg)
     end
 
-    -- Overtakes landing during the cooldown window go unmentioned by design
+    -- Overtakes landing during the cooldown window go unmentioned by design.
+    -- Milestones bypass the cooldown: they're rare by construction, so they
+    -- can't spam, and a 100th cast shouldn't go uncelebrated.
     if opts.whisperThanks and sourceGUID ~= playerGUID then
         local now = GetTime()
-        if not lastWhisper[sourceGUID] or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN then
+        local milestone = IsMilestone(count)
+        if milestone or not lastWhisper[sourceGUID]
+            or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN then
             lastWhisper[sourceGUID] = now
             local details = ("your %s rank: %d, casts: %d"):format(
                 spell.name, GetSpellRank(sourceGUID, spell.name), count)
             if passed then
                 details = ("%s, overtook: %s"):format(details, table.concat(passed, ", "))
             end
+            local thanks = milestone
+                and ("That's your %dth %s on me!"):format(count, spell.name)
+                or ("Thanks for %s!"):format(spell.name)
             SendChatMessage(
-                ("Thanks for %s! (%s)"):format(spell.name, details),
+                ("%s (%s)"):format(thanks, details),
                 "WHISPER", nil, sourceName)
         end
     end
