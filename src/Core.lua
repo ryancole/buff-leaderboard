@@ -138,6 +138,49 @@ function ns.ForgetCaster(guid)
     ns.RefreshLeaderboard()
 end
 
+-- Casters count as inactive after this many days without a recorded cast
+local PRUNE_DAYS = 90
+ns.PRUNE_DAYS = PRUNE_DAYS
+
+local function PruneCutoff()
+    return time() - PRUNE_DAYS * 24 * 60 * 60
+end
+
+-- How many casters a prune would forget right now
+function ns.CountInactiveCasters()
+    local n = 0
+    if db then
+        local cutoff = PruneCutoff()
+        for _, rec in next, db.casters do
+            if (rec.lastSeen or 0) < cutoff then
+                n = n + 1
+            end
+        end
+    end
+    return n
+end
+
+-- Drops every caster not seen in PRUNE_DAYS days from the all-time data,
+-- so SavedVariables doesn't accumulate every passerby forever. The session
+-- store needs no pruning: anyone in it was seen this session. Returns the
+-- number forgotten.
+function ns.PruneCasters()
+    local pruned = 0
+    if db then
+        local cutoff = PruneCutoff()
+        for guid, rec in next, db.casters do
+            if (rec.lastSeen or 0) < cutoff then
+                db.casters[guid] = nil -- clearing the current key is next-safe
+                pruned = pruned + 1
+            end
+        end
+    end
+    if pruned > 0 then
+        ns.RefreshLeaderboard()
+    end
+    return pruned
+end
+
 -- Buff names with at least one recorded cast, alphabetical. These come
 -- from history, not the tracked list, so ladders survive untracking.
 function ns.GetRecordedBuffs(sessionOnly)
@@ -579,6 +622,21 @@ SlashCmdList.BUFFLEADERBOARD = function(msg)
         else
             print(("|cff33ff99BuffLeaderboard|r: %s is not tracked."):format(arg))
         end
+    elseif cmd == "prune" then
+        if arg and strlower(strtrim(arg)) == "confirm" then
+            local n = ns.PruneCasters()
+            print(("|cff33ff99BuffLeaderboard|r: forgot %d inactive caster%s."):format(
+                n, n == 1 and "" or "s"))
+        else
+            local n = ns.CountInactiveCasters()
+            if n == 0 then
+                print(("|cff33ff99BuffLeaderboard|r: no casters have gone unseen for %d+ days."):format(
+                    PRUNE_DAYS))
+            else
+                print(("|cff33ff99BuffLeaderboard|r: this forgets %d caster%s not seen in %d days. Type |cffffff00/blb prune confirm|r to proceed."):format(
+                    n, n == 1 and "" or "s", PRUNE_DAYS))
+            end
+        end
     elseif cmd == "reset" then
         if arg and strlower(arg) == "confirm" then
             wipe(db.casters)
@@ -599,6 +657,7 @@ SlashCmdList.BUFFLEADERBOARD = function(msg)
         print("  /blb track <name or spell id> — add a buff to the tracked list")
         print("  /blb untrack <name> — remove a buff from the tracked list")
         print("  /blb options — open the settings panel")
+        print(("  /blb prune confirm — forget casters not seen in %d days"):format(PRUNE_DAYS))
         print("  /blb reset confirm — wipe this character's data")
     end
 end

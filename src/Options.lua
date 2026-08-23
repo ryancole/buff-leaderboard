@@ -258,6 +258,49 @@ function ns.SetupOptions()
     casterList:SetPoint("TOPLEFT", casterHeader, "BOTTOMLEFT", 0, -6)
     casterList:SetSize(320, 110)
 
+    -- Bulk prune of casters who stopped playing with you. Unlike the
+    -- per-row forget button, one click here can wipe a whole roster of
+    -- names, so it confirms via popup first.
+    StaticPopupDialogs["BUFFLEADERBOARD_PRUNE"] = {
+        text = ("Forget %%d caster%%s not seen in the last %d days?"):format(ns.PRUNE_DAYS),
+        button1 = YES,
+        button2 = NO,
+        OnAccept = function()
+            local n = ns.PruneCasters()
+            print(("|cff33ff99BuffLeaderboard|r: forgot %d inactive caster%s."):format(
+                n, n == 1 and "" or "s"))
+            casterList:UpdateList()
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+    }
+
+    local pruneButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    pruneButton:SetSize(110, 22)
+    pruneButton:SetText("Prune Inactive")
+    pruneButton:SetPoint("LEFT", casterHeader, "RIGHT", 12, 0)
+    pruneButton:SetScript("OnClick", function()
+        local n = ns.CountInactiveCasters()
+        if n == 0 then
+            UIErrorsFrame:AddMessage(
+                ("no casters have gone unseen for %d+ days"):format(ns.PRUNE_DAYS), 1, 0.3, 0.3)
+        else
+            StaticPopup_Show("BUFFLEADERBOARD_PRUNE", n, n == 1 and "" or "s")
+        end
+    end)
+    pruneButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(("Forget casters not seen in the last %d days"):format(ns.PRUNE_DAYS))
+        local n = ns.CountInactiveCasters()
+        GameTooltip:AddLine(("Would forget %d caster%s right now"):format(
+            n, n == 1 and "" or "s"), 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    pruneButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     -- Required no-op handlers for canvas settings panels
     panel.OnCommit = function() end
     panel.OnDefault = function() end

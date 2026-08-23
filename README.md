@@ -52,6 +52,8 @@ git tag v0.2.0 && git push origin master --tags
 - `/blb track <name or spell id>` — add a buff to the tracked list
 - `/blb untrack <name>` — remove a buff from the tracked list
 - `/blb options` — open the settings panel
+- `/blb prune confirm` — forget casters not seen in the last 90 days (the
+  settings panel's "Prune Inactive" button does the same)
 - `/blb reset confirm` — wipe this character's data
 
 With the auto-reply option enabled, other players can whisper you `!rank`

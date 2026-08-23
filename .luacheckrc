@@ -17,6 +17,7 @@ globals = {
     "SLASH_BUFFLEADERBOARD1",
     "SLASH_BUFFLEADERBOARD2",
     "SlashCmdList",
+    "StaticPopupDialogs", -- popup definitions are registered by key
 }
 
 -- WoW-provided API, read-only
@@ -36,6 +37,7 @@ read_globals = {
     -- Frames, fonts, and constants
     "CLASS_ICON_TCOORDS",
     "COMBATLOG_OBJECT_TYPE_PLAYER", "GameFontHighlight", "GameFontNormal",
-    "GameTooltip", "Minimap", "NORMAL_FONT_COLOR", "RAID_CLASS_COLORS",
-    "UIErrorsFrame", "UIParent", "UISpecialFrames", "WHITE_FONT_COLOR",
+    "GameTooltip", "Minimap", "NO", "NORMAL_FONT_COLOR", "RAID_CLASS_COLORS",
+    "StaticPopup_Show", "UIErrorsFrame", "UIParent", "UISpecialFrames",
+    "WHITE_FONT_COLOR", "YES",
 }
