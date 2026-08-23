@@ -37,6 +37,7 @@ local TRACKED = {
 
 ns.optionDefaults = {
     trackSelf = false,     -- count tracked buffs you cast on yourself
+    groupOnly = false,     -- only record while in a party or raid
     announce = false,      -- chat message when a tracked buff lands on you
     whisperThanks = false, -- whisper the caster their rank and total
     rankReplies = false,   -- auto-reply to "!rank" whispers with the sender's rank
@@ -423,6 +424,8 @@ local function OnCombatLogEvent()
     if not mode then return end
     if destGUID ~= playerGUID then return end
     if not spellName then return end
+    -- IsInGroup is true for both parties and raids
+    if opts.groupOnly and not IsInGroup() then return end
 
     -- Name matching: all ranks of a TBC spell share one name
     local spell = opts.tracked[spellName:lower()]

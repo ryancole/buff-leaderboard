@@ -186,10 +186,15 @@ function ns.SetupOptions()
         function(v) opts.trackSelf = v end)
     trackSelf:SetPoint("TOPLEFT", versionText, "BOTTOMLEFT", -4, -10)
 
+    local groupOnly = MakeCheckbox(panel, "Track buffs only while in a group (party or raid)",
+        function() return opts.groupOnly end,
+        function(v) opts.groupOnly = v end)
+    groupOnly:SetPoint("TOPLEFT", trackSelf, "BOTTOMLEFT", 0, -2)
+
     local announce = MakeCheckbox(panel, "Announce tracked buffs in chat",
         function() return opts.announce end,
         function(v) opts.announce = v end)
-    announce:SetPoint("TOPLEFT", trackSelf, "BOTTOMLEFT", 0, -2)
+    announce:SetPoint("TOPLEFT", groupOnly, "BOTTOMLEFT", 0, -2)
 
     local whisper = MakeCheckbox(panel, "Whisper casters a thank-you with their rank and total",
         function() return opts.whisperThanks end,
