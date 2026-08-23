@@ -218,8 +218,9 @@ function ns.SetupOptions()
     listHeader:SetPoint("TOPLEFT", minimapButton, "BOTTOMLEFT", 4, -20)
     listHeader:SetText("Tracked Buffs")
 
+    -- List heights: 4 rows of 24px plus the inset's 7px vertical padding
     local list = MakeSpellList(panel)
-    list:SetSize(320, 150)
+    list:SetSize(320, 103)
 
     -- Add row: buff name or spell id + Add button, above the list
     local addBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
@@ -261,7 +262,7 @@ function ns.SetupOptions()
 
     local casterList = MakeCasterList(panel)
     casterList:SetPoint("TOPLEFT", casterHeader, "BOTTOMLEFT", 0, -6)
-    casterList:SetSize(320, 110)
+    casterList:SetSize(320, 103)
 
     -- Bulk prune of casters who stopped playing with you. Unlike the
     -- per-row forget button, one click here can wipe a whole roster of
