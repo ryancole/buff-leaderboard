@@ -1,9 +1,12 @@
 local ADDON_NAME, ns = ...
 
--- Main leaderboard window (/blb): recorded buffs down the left, the
--- selected buff's ladder on the right, with an all-time/session toggle.
--- Built lazily on first show, so SavedVariables and the character DB are
--- guaranteed to exist. Same ScrollBox idioms as Options.lua.
+-- Main leaderboard window (/blb), paged by character-frame-style tabs
+-- along the bottom edge: the leaderboard itself (recorded buffs down the
+-- left, the selected buff's ladder on the right, with an all-time/session
+-- toggle), the tracked-buff list, the recorded casters, and the options.
+-- The management and options tabs use the same shared widgets as the
+-- settings panel (Widgets.lua). Built lazily on first show, so
+-- SavedVariables and the character DB are guaranteed to exist.
 
 local frame
 local selectedBuff -- display name of the buff whose ladder is shown
@@ -77,30 +80,16 @@ local function Refresh()
 end
 
 -- Called by Core.lua whenever a tracked buff is recorded or a caster is
--- forgotten; cheap no-op while the window is closed
+-- forgotten; cheap no-op while the window is closed. Only the visible tab
+-- is refreshed — hidden tabs catch up via OnShow when selected. The
+-- tracked-buff tab never changes from recording, so it needs neither.
 function ns.RefreshLeaderboard()
-    if frame and frame:IsShown() then
+    if not (frame and frame:IsShown()) then return end
+    if frame.selectedTab == 1 then
         Refresh()
+    elseif frame.selectedTab == 3 then
+        frame.casterList.UpdateList()
     end
-end
-
--- Scrollable list clipped to an inset, per the Options.lua pattern
-local function MakeScrollList(parent, rowInitializer)
-    local container = CreateFrame("Frame", nil, parent, "InsetFrameTemplate")
-
-    local scrollBar = CreateFrame("EventFrame", nil, container, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPRIGHT", -10, -5)
-    scrollBar:SetPoint("BOTTOMRIGHT", -10, 5)
-    local scrollBox = CreateFrame("Frame", nil, container, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 2, -2)
-    scrollBox:SetPoint("BOTTOMRIGHT", scrollBar, "BOTTOMLEFT", -3, 0)
-
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(22)
-    view:SetElementInitializer("Button", rowInitializer)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    return container, scrollBox
 end
 
 -- Left pane row: spell icon and buff name; clicking selects its ladder
@@ -173,37 +162,25 @@ local function InitLadderRow(row, entry)
     end)
 end
 
-local function CreateWindow()
-    -- Named so UISpecialFrames can close it with Escape
-    frame = CreateFrame("Frame", "BuffLeaderboardFrame", UIParent, "BasicFrameTemplate")
-    frame:SetSize(470, 400)
-    frame:SetPoint("CENTER")
-    frame:SetToplevel(true)
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-    frame:SetClampedToScreen(true)
-    frame.TitleText:SetText("Buff Leaderboard")
-    tinsert(UISpecialFrames, "BuffLeaderboardFrame")
-
-    local buffHeader = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    buffHeader:SetPoint("TOPLEFT", 14, -32)
+-- Tab 1: the leaderboard proper — buff list, ladder, scope toggle,
+-- announce button
+local function BuildLeaderboardPage(page)
+    local buffHeader = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    buffHeader:SetPoint("TOPLEFT", 14, -8)
     buffHeader:SetText("Buffs")
 
-    local buffList, buffScrollBox = MakeScrollList(frame, InitBuffRow)
-    buffList:SetPoint("TOPLEFT", 10, -48)
+    local buffList, buffScrollBox = ns.CreateScrollList(page, 22, InitBuffRow)
+    buffList:SetPoint("TOPLEFT", 10, -24)
     buffList:SetPoint("BOTTOMLEFT", 10, 34)
     buffList:SetWidth(150)
     frame.buffScrollBox = buffScrollBox
 
-    frame.LadderHeader = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    frame.LadderHeader = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     frame.LadderHeader:SetPoint("TOPLEFT", buffHeader, "TOPLEFT", 156, 0)
-    frame.LadderHeader:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
+    frame.LadderHeader:SetPoint("RIGHT", page, "RIGHT", -14, 0)
     frame.LadderHeader:SetJustifyH("LEFT")
 
-    local ladderList, ladderScrollBox = MakeScrollList(frame, InitLadderRow)
+    local ladderList, ladderScrollBox = ns.CreateScrollList(page, 22, InitLadderRow)
     ladderList:SetPoint("TOPLEFT", buffList, "TOPRIGHT", 6, 0)
     ladderList:SetPoint("BOTTOMRIGHT", -10, 34)
     frame.ladderScrollBox = ladderScrollBox
@@ -213,7 +190,7 @@ local function CreateWindow()
     frame.Empty:SetText("Nothing recorded yet")
 
     -- Scope toggle: all-time (default) vs this session
-    local sessionCheck = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    local sessionCheck = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
     sessionCheck:SetSize(26, 26)
     sessionCheck:SetPoint("BOTTOMLEFT", 8, 4)
     sessionCheck:SetChecked(sessionOnly)
@@ -227,7 +204,7 @@ local function CreateWindow()
 
     -- Announce the selected buff's top casters; the channel is picked
     -- from a context menu so misclicks can't spam anything
-    local announce = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    local announce = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
     announce:SetSize(130, 22)
     announce:SetPoint("BOTTOMRIGHT", -8, 6)
     announce:SetText(("Announce Top %d"):format(ANNOUNCE_TOP_N))
@@ -246,9 +223,143 @@ local function CreateWindow()
     end)
     frame.AnnounceButton = announce
 
-    frame:SetScript("OnShow", Refresh)
-    -- The frame is born visible, so OnShow doesn't fire for the first open
-    Refresh()
+    page:SetScript("OnShow", Refresh)
+end
+
+-- Tab 2: manage the tracked-buff list, mirroring the settings panel
+local function BuildBuffsPage(page)
+    local header = page:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    header:SetPoint("TOPLEFT", 14, -10)
+    header:SetText("Tracked Buffs")
+
+    -- Add row: buff name or spell id + Add button, above the list
+    local addBox = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
+    addBox:SetSize(250, 22)
+    addBox:SetAutoFocus(false)
+    addBox:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 6, -8)
+
+    local addButton = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    addButton:SetSize(70, 22)
+    addButton:SetText("Add")
+    addButton:SetPoint("LEFT", addBox, "RIGHT", 8, 0)
+
+    local addHint = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    addHint:SetPoint("TOPLEFT", addBox, "BOTTOMLEFT", -6, -4)
+    addHint:SetText("Add a buff by exact name (all ranks match) or by spell id.")
+
+    local list = ns.CreateSpellList(page)
+    list:SetPoint("TOPLEFT", addHint, "BOTTOMLEFT", -4, -8)
+    list:SetPoint("BOTTOMRIGHT", -10, 10)
+
+    local function DoAdd()
+        local ok, result = ns.AddSpell(addBox:GetText())
+        if ok then
+            addBox:SetText("")
+            addBox:ClearFocus()
+            list.UpdateList()
+        else
+            UIErrorsFrame:AddMessage(result, 1, 0.3, 0.3)
+        end
+    end
+    addButton:SetScript("OnClick", DoAdd)
+    addBox:SetScript("OnEnterPressed", DoAdd)
+    addBox:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+    end)
+end
+
+-- Tab 4: the account-wide option checkboxes, mirroring the settings panel
+local function BuildOptionsPage(page)
+    local header = page:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    header:SetPoint("TOPLEFT", 14, -10)
+    header:SetText("Options")
+
+    local checks = ns.CreateOptionChecks(page)
+    checks:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -8)
+end
+
+-- Tab 3: everyone recorded on this character, with forget and prune
+local function BuildCastersPage(page)
+    local header = page:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    header:SetPoint("TOPLEFT", 14, -10)
+    header:SetText("Recorded Casters")
+
+    local casterList = ns.CreateCasterList(page)
+    casterList:SetPoint("TOPLEFT", 10, -34)
+    casterList:SetPoint("BOTTOMRIGHT", -10, 10)
+    frame.casterList = casterList
+
+    local prune = ns.CreatePruneButton(page, casterList)
+    prune:SetPoint("LEFT", header, "RIGHT", 12, 0)
+end
+
+local function CreateWindow()
+    -- Named so UISpecialFrames can close it with Escape
+    frame = CreateFrame("Frame", "BuffLeaderboardFrame", UIParent, "BasicFrameTemplate")
+    frame:SetSize(470, 400)
+    frame:SetPoint("CENTER")
+    frame:SetToplevel(true)
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetClampedToScreen(true)
+    frame.TitleText:SetText("Buff Leaderboard")
+    tinsert(UISpecialFrames, "BuffLeaderboardFrame")
+
+    -- One page frame per tab, covering the body below the title bar.
+    -- Pages refresh themselves via OnShow, which also fires for the
+    -- visible page whenever the window itself is reopened.
+    frame.Pages = {}
+    local function MakePage()
+        local page = CreateFrame("Frame", nil, frame)
+        page:SetPoint("TOPLEFT", 0, -24)
+        page:SetPoint("BOTTOMRIGHT")
+        page:Hide()
+        frame.Pages[#frame.Pages + 1] = page
+        return page
+    end
+
+    local function SelectTab(index)
+        PanelTemplates_SetTab(frame, index) -- sets frame.selectedTab
+        for i, page in ipairs(frame.Pages) do
+            page:SetShown(i == index)
+        end
+    end
+
+    -- Character-frame-style tabs hanging off the bottom edge. Global tab
+    -- names follow the <frame name>Tab<n> convention PanelTemplates
+    -- resolves buttons by.
+    local tabs = { "Leaderboard", "Tracked Buffs", "Casters", "Options" }
+    local previousTab
+    for i, label in ipairs(tabs) do
+        local tab = CreateFrame("Button", "BuffLeaderboardFrameTab" .. i, frame,
+            "PanelTabButtonTemplate")
+        tab:SetID(i)
+        tab:SetText(label)
+        if previousTab then
+            tab:SetPoint("TOPLEFT", previousTab, "TOPRIGHT", -15, 0)
+        else
+            tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 11, 2)
+        end
+        tab:SetScript("OnClick", function(self)
+            PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
+            SelectTab(self:GetID())
+        end)
+        PanelTemplates_TabResize(tab, 0)
+        previousTab = tab
+    end
+    PanelTemplates_SetNumTabs(frame, #tabs)
+
+    BuildLeaderboardPage(MakePage())
+    BuildBuffsPage(MakePage())
+    BuildCastersPage(MakePage())
+    BuildOptionsPage(MakePage())
+
+    -- The frame is born visible, so showing page 1 fires its OnShow and
+    -- runs the first Refresh
+    SelectTab(1)
 end
 
 function ns.ShowLeaderboard()

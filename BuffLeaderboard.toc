@@ -10,6 +10,7 @@
 
 src\Spells.lua
 src\Core.lua
+src\Widgets.lua
 src\Leaderboard.lua
 src\MinimapButton.lua
 src\Options.lua

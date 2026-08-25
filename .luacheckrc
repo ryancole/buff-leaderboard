@@ -28,8 +28,9 @@ read_globals = {
     -- API functions
     "CombatLogGetCurrentEventInfo", "CreateFrame", "GetCursorPosition",
     "GetPlayerInfoByGUID", "GetRealmName", "GetSpellInfo", "GetTime",
-    "IsInGroup", "IsInGuild", "IsInRaid", "SendChatMessage", "UnitGUID",
-    "UnitName",
+    "IsInGroup", "IsInGuild", "IsInRaid", "PanelTemplates_SetNumTabs",
+    "PanelTemplates_SetTab", "PanelTemplates_TabResize", "PlaySound",
+    "SendChatMessage", "UnitGUID", "UnitName",
     -- Namespaces
     "C_AddOns", "C_Spell", "MenuUtil", "Settings",
     -- ScrollBox utilities
@@ -37,7 +38,7 @@ read_globals = {
     -- Frames, fonts, and constants
     "CLASS_ICON_TCOORDS",
     "COMBATLOG_OBJECT_TYPE_PLAYER", "GameFontHighlight", "GameFontNormal",
-    "GameTooltip", "Minimap", "NO", "NORMAL_FONT_COLOR", "RAID_CLASS_COLORS",
-    "StaticPopup_Show", "UIErrorsFrame", "UIParent", "UISpecialFrames",
-    "WHITE_FONT_COLOR", "YES",
+    "GameTooltip", "HideUIPanel", "Minimap", "NO", "NORMAL_FONT_COLOR",
+    "RAID_CLASS_COLORS", "SettingsPanel", "SOUNDKIT", "StaticPopup_Show",
+    "UIErrorsFrame", "UIParent", "UISpecialFrames", "WHITE_FONT_COLOR", "YES",
 }

@@ -11,7 +11,12 @@ of who has given you the most, across sessions.
 - `src/Spells.lua` — default tracked buffs, seeded into SavedVariables on
   first run; after that the user-managed list is authoritative
 - `src/Core.lua` — SavedVariables, combat log handler, slash commands
-- `src/Leaderboard.lua` — the in-game leaderboard window (`/blb`)
+- `src/Widgets.lua` — the leaderboard window's list widgets (tracked-buff
+  list, caster list, prune button) and the option checkboxes shared with
+  the settings panel
+- `src/Leaderboard.lua` — the in-game leaderboard window (`/blb`), with
+  bottom tabs for the leaderboard, the tracked-buff list, recorded casters,
+  and options
 - `src/MinimapButton.lua` — minimap button that toggles the leaderboard window
 - `src/Options.lua` — settings panel (Options -> AddOns -> Buff Leaderboard)
 
@@ -45,7 +50,9 @@ git tag v0.2.0 && git push origin master --tags
 ## Commands
 
 - `/blb` — toggle the leaderboard window (the minimap button does the same;
-  drag it to move it around the minimap rim, or hide it in the settings panel)
+  drag it to move it around the minimap rim, or hide it in the settings
+  panel). Tabs along the bottom switch between the leaderboard, the
+  tracked-buff list, the recorded casters, and the options.
 - `/blb dump` — all casters and their per-buff counts
 - `/blb dump session` — this session only
 - `/blb dump <buff name>` — the all-time ladder for one buff
@@ -53,7 +60,7 @@ git tag v0.2.0 && git push origin master --tags
 - `/blb untrack <name>` — remove a buff from the tracked list
 - `/blb options` — open the settings panel
 - `/blb prune confirm` — forget casters not seen in the last 90 days (the
-  settings panel's "Prune Inactive" button does the same)
+  Casters tab's "Prune Inactive" button does the same)
 - `/blb reset confirm` — wipe this character's data
 
 With the auto-reply option enabled, other players can whisper you `!rank`
