@@ -15,13 +15,18 @@ local function MakeCheckbox(parent, label, getter, setter)
         self:SetChecked(getter())
     end)
     local text = check:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    check.Text = text
     text:SetText(label)
     text:SetPoint("LEFT", check, "RIGHT", 5, 1)
     text:SetScript("OnMouseUp", function()
-        check:Click()
+        if check:IsEnabled() then
+            check:Click()
+        end
     end)
     text:SetScript("OnEnter", function()
-        check:LockHighlight()
+        if check:IsEnabled() then
+            check:LockHighlight()
+        end
     end)
     text:SetScript("OnLeave", function()
         check:UnlockHighlight()
@@ -36,32 +41,48 @@ function ns.CreateOptionChecks(parent)
     local opts = BuffLeaderboardDB.options
     local container = CreateFrame("Frame", nil, parent)
 
+    -- A dependsOn entry is a sub-option: indented under its parent and
+    -- greyed out (value kept, just not editable) while the parent is off
     local defs = {
         { "Track self-casts", "trackSelf" },
         { "Track buffs only while in a group (party or raid)", "groupOnly" },
         { "Announce tracked buffs in chat", "announce" },
         { "Whisper casters a thank-you with their rank and total", "whisperThanks" },
+        { "Only whisper on special events (overtakes, cast milestones)",
+            "whisperSpecialOnly", dependsOn = "whisperThanks" },
         { "Auto-reply to !rank whispers with the sender's rank", "rankReplies" },
         { "Show minimap button", "minimapButton",
             function(v) ns.SetMinimapButtonShown(v) end },
     }
-    local previous
-    for _, def in ipairs(defs) do
+
+    local checks = {}
+    local function UpdateDependents()
+        for i, def in ipairs(defs) do
+            if def.dependsOn then
+                local enabled = opts[def.dependsOn] and true or false
+                checks[i]:SetEnabled(enabled)
+                checks[i].Text:SetFontObject(
+                    enabled and GameFontHighlight or GameFontDisable)
+            end
+        end
+    end
+
+    for i, def in ipairs(defs) do
         local label, key, onChange = def[1], def[2], def[3]
         local check = MakeCheckbox(container, label,
             function() return opts[key] end,
             function(v)
                 opts[key] = v
                 if onChange then onChange(v) end
+                UpdateDependents()
             end)
-        if previous then
-            check:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -2)
-        else
-            check:SetPoint("TOPLEFT")
-        end
-        previous = check
+        -- 26px checkboxes on a 28px pitch
+        check:SetPoint("TOPLEFT", def.dependsOn and 20 or 0, -(i - 1) * 28)
+        checks[i] = check
     end
-    -- 26px checkboxes on a 28px pitch; labels overhang the width freely
+    container:SetScript("OnShow", UpdateDependents)
+
+    -- Labels overhang the width freely
     container:SetSize(340, #defs * 28 - 2)
 
     return container

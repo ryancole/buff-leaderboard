@@ -37,7 +37,8 @@ read_globals = {
     "CreateDataProvider", "CreateScrollBoxListLinearView", "ScrollUtil",
     -- Frames, fonts, and constants
     "CLASS_ICON_TCOORDS",
-    "COMBATLOG_OBJECT_TYPE_PLAYER", "GameFontHighlight", "GameFontNormal",
+    "COMBATLOG_OBJECT_TYPE_PLAYER", "GameFontDisable", "GameFontHighlight",
+    "GameFontNormal",
     "GameTooltip", "HideUIPanel", "Minimap", "NO", "NORMAL_FONT_COLOR",
     "RAID_CLASS_COLORS", "SettingsPanel", "SOUNDKIT", "StaticPopup_Show",
     "UIErrorsFrame", "UIParent", "UISpecialFrames", "WHITE_FONT_COLOR", "YES",

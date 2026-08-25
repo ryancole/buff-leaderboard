@@ -41,6 +41,7 @@ ns.optionDefaults = {
     groupOnly = false,     -- only record while in a party or raid
     announce = false,      -- chat message when a tracked buff lands on you
     whisperThanks = false, -- whisper the caster their rank and total
+    whisperSpecialOnly = false, -- thank-yous only for overtakes and milestones
     rankReplies = false,   -- auto-reply to "!rank" whispers with the sender's rank
     minimapAngle = 220,    -- minimap button position, degrees around the rim
     minimapButton = true,  -- show the minimap button
@@ -509,11 +510,16 @@ local function OnCombatLogEvent()
     -- Overtakes landing during the cooldown window go unmentioned by design.
     -- Milestones bypass the cooldown: they're rare by construction, so they
     -- can't spam, and a 100th cast shouldn't go uncelebrated.
+    -- Special-only mode drops the routine thank-yous entirely: a whisper
+    -- goes out only when this cast overtook someone (passing them is what
+    -- moves the caster up the ladder) or hit a milestone count.
     if opts.whisperThanks and sourceGUID ~= playerGUID then
         local now = GetTime()
         local milestone = IsMilestone(count)
-        if milestone or not lastWhisper[sourceGUID]
-            or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN then
+        local special = milestone or passed ~= nil
+        if (special or not opts.whisperSpecialOnly)
+            and (milestone or not lastWhisper[sourceGUID]
+                or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN) then
             lastWhisper[sourceGUID] = now
             local details = ("your %s rank: %d, casts: %d"):format(
                 spell.name, GetSpellRank(sourceGUID, spell.name), count)
