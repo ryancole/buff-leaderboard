@@ -333,6 +333,11 @@ local function CreateWindow()
     -- Character-frame-style tabs hanging off the bottom edge. Global tab
     -- names follow the <frame name>Tab<n> convention PanelTemplates
     -- resolves buttons by.
+    --
+    -- The template's OnShow re-resizes each tab using the parent's
+    -- tabPadding, defaulting to 24 when unset — which would regrow the
+    -- tabs past our creation-time size every time the window is reopened.
+    frame.tabPadding = 0
     local tabs = { "Leaderboard", "Tracked Buffs", "Casters", "Options" }
     local previousTab
     for i, label in ipairs(tabs) do
