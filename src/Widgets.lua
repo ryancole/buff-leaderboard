@@ -46,7 +46,7 @@ function ns.CreateOptionChecks(parent)
     local defs = {
         { "Track self-casts", "trackSelf" },
         { "Track buffs only while in a group (party or raid)", "groupOnly" },
-        { "Announce tracked buffs in chat", "announce" },
+        { "Print tracked buffs to your chat window", "announce" },
         { "Whisper casters a thank-you with their rank and total", "whisperThanks" },
         { "Only whisper on special events (overtakes, cast milestones)",
             "whisperSpecialOnly", dependsOn = "whisperThanks" },
