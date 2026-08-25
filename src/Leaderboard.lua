@@ -297,7 +297,9 @@ local function CreateWindow()
     -- Named so UISpecialFrames can close it with Escape
     frame = CreateFrame("Frame", "BuffLeaderboardFrame", UIParent, "BasicFrameTemplate")
     frame:SetSize(470, 400)
-    frame:SetPoint("CENTER")
+    -- Above center so the window sits over the empty upper screen rather
+    -- than the character and action bars
+    frame:SetPoint("CENTER", 0, 150)
     frame:SetToplevel(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
