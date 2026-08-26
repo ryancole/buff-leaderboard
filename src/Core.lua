@@ -42,6 +42,7 @@ ns.optionDefaults = {
     announce = false,      -- chat message when a tracked buff lands on you
     whisperThanks = false, -- whisper the caster their rank and total
     whisperSpecialOnly = false, -- thank-yous only for overtakes and milestones
+    whisperWelcome = false, -- greet casters on their first recorded cast
     rankReplies = false,   -- auto-reply to "!rank" whispers with the sender's rank
     minimapAngle = 220,    -- minimap button position, degrees around the rim
     minimapButton = true,  -- show the minimap button
@@ -474,6 +475,7 @@ local function OnCombatLogEvent()
     -- Ranks, overtakes, and whispers are all per-buff: "who Innervates me
     -- the most" rather than one combined ladder
     local casterRec = db.casters[sourceGUID]
+    local newCaster = not casterRec -- first recorded cast of any tracked buff
     local oldCount = casterRec and casterRec.spells[spell.name] or 0
     Record(sourceGUID, sourceName, spell.name)
     local count = oldCount + 1
@@ -505,6 +507,20 @@ local function OnCombatLogEvent()
                 GetSpellRank(sourceGUID, spell.name))
         end
         print(msg)
+    end
+
+    -- A caster's first-ever recorded cast gets a one-time welcome whisper
+    -- instead of the routine thank-you: stamping the cooldown here makes
+    -- the thank-you block below skip this cast (a first cast can't be an
+    -- overtake or a milestone, so nothing bypasses the stamp).
+    if opts.whisperWelcome and opts.whisperThanks and newCaster
+        and sourceGUID ~= playerGUID then
+        lastWhisper[sourceGUID] = GetTime()
+        local welcome = ("Thanks for %s! Welcome to my buff leaderboard - I keep count of every tracked buff cast on me."):format(spell.name)
+        if opts.rankReplies then
+            welcome = welcome .. " Whisper me !rank anytime to check your standing."
+        end
+        SendChatMessage(welcome, "WHISPER", nil, sourceName)
     end
 
     -- Overtakes landing during the cooldown window go unmentioned by design.

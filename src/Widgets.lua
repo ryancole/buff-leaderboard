@@ -50,6 +50,8 @@ function ns.CreateOptionChecks(parent)
         { "Whisper casters a thank-you with their rank and total", "whisperThanks" },
         { "Only whisper on special events (overtakes, cast milestones)",
             "whisperSpecialOnly", dependsOn = "whisperThanks" },
+        { "Welcome first-time casters to the leaderboard",
+            "whisperWelcome", dependsOn = "whisperThanks" },
         { "Auto-reply to !rank whispers with the sender's rank", "rankReplies" },
         { "Show minimap button", "minimapButton",
             function(v) ns.SetMinimapButtonShown(v) end },
