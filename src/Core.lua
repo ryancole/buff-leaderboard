@@ -537,8 +537,10 @@ local function OnCombatLogEvent()
             and (milestone or not lastWhisper[sourceGUID]
                 or now - lastWhisper[sourceGUID] > WHISPER_COOLDOWN) then
             lastWhisper[sourceGUID] = now
-            local details = ("your %s rank: %d, casts: %d"):format(
-                spell.name, GetSpellRank(sourceGUID, spell.name), count)
+            -- "#N on my <buff> leaderboard" rather than "rank", which
+            -- reads like a spell rank; matches the !rank replies' #N style
+            local details = ("you're #%d on my %s leaderboard with %d casts"):format(
+                GetSpellRank(sourceGUID, spell.name), spell.name, count)
             if passed then
                 details = ("%s, overtook: %s"):format(details, table.concat(passed, ", "))
             end
