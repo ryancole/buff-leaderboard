@@ -161,6 +161,7 @@ function ns.CreateSpellList(parent)
         text:SetPoint("LEFT", 32, 0)
         text:SetPoint("RIGHT", -24, 0)
         text:SetJustifyH("LEFT")
+        text:SetWordWrap(false)
     end)
     container.UpdateList = UpdateList
 
@@ -214,6 +215,7 @@ function ns.CreateCasterList(parent)
         text:SetPoint("LEFT", 8, 0)
         text:SetPoint("RIGHT", -24, 0)
         text:SetJustifyH("LEFT")
+        text:SetWordWrap(false)
     end)
     container.UpdateList = UpdateList
 

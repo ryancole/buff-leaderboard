@@ -107,9 +107,20 @@ local function InitBuffRow(row, buffName)
     text:SetPoint("LEFT", 8, 0)
     text:SetPoint("RIGHT", -8, 0)
     text:SetJustifyH("LEFT")
+    text:SetWordWrap(false)
     row:SetScript("OnClick", function()
         selectedBuff = buffName
         Refresh()
+    end)
+    -- Names too long for the pane are ellipsized; show the full name on hover
+    row:SetScript("OnEnter", function(self)
+        if not text:IsTruncated() then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(buffName)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function()
+        GameTooltip:Hide()
     end)
 end
 
@@ -143,6 +154,7 @@ local function InitLadderRow(row, entry)
     text:SetPoint("LEFT", 8, 0)
     text:SetPoint("RIGHT", row.Count, "LEFT", -8, 0)
     text:SetJustifyH("LEFT")
+    text:SetWordWrap(false)
     row.Count:SetText(entry.count)
 
     row:SetScript("OnEnter", function(self)
@@ -179,6 +191,7 @@ local function BuildLeaderboardPage(page)
     frame.LadderHeader:SetPoint("TOPLEFT", buffHeader, "TOPLEFT", 156, 0)
     frame.LadderHeader:SetPoint("RIGHT", page, "RIGHT", -14, 0)
     frame.LadderHeader:SetJustifyH("LEFT")
+    frame.LadderHeader:SetWordWrap(false)
 
     local ladderList, ladderScrollBox = ns.CreateScrollList(page, 22, InitLadderRow)
     ladderList:SetPoint("TOPLEFT", buffList, "TOPRIGHT", 6, 0)
